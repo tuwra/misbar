@@ -102,17 +102,21 @@
       pagesP: null, stop: [],
     });
     lesson.stats ||= { activity: 0 };
+    if (Array.isArray(W.gen.bank)) lesson.bank = W.gen.bank;
+    W.teacher = NL.auth.isTeacher();
     W.tabs = tabsFor(lesson);
     W.tab = tab && W.tabs.includes(tab) ? tab : 'overview';
     v.innerHTML = `<div class="ws">
       <aside class="ws-nav">
         <div class="ws-id"><p class="lcard-meta"><span class="subj-dot s-${esc(lesson.subject)}"></span>${esc(NL.subjectName(lesson.subject))}${lesson.unit ? ' · ' + esc(lesson.unit) : ''}</p>
           <h1 class="ws-title">${esc(lesson.title)}</h1>
+          ${NL.auth.isTeacher() && lesson.analysis ? `<button class="btn sm present-btn" id="ws-present">${tabIcon('3d').replace('class="ic"', 'class="ic"')} ${t('present')}</button>` : ''}
           <div class="ws-prog"><svg viewBox="0 0 40 40" class="ring"><circle cx="20" cy="20" r="16" class="ring-bg"/><circle cx="20" cy="20" r="16" class="ring-fg" pathLength="100" stroke-dasharray="0 100"/></svg><span><b id="ws-pct">0%</b> ${t('progress')}</span></div></div>
         <nav class="ws-tabs" aria-label="tools">${['learn', 'practice', 'review'].map((g) => `<p class="ws-grp">${t('grp_' + g)}</p>${W.tabs.filter((k) => TABS[k].g === g).map((k) => `<button class="ws-tab" data-tab="${k}">${tabIcon(k)}<span>${t('tab_' + k)}</span></button>`).join('')}`).join('')}</nav>
       </aside>
       <section class="ws-main"><div class="ws-body" id="ws-body"></div></section></div>`;
     $$('.ws-tab', v).forEach((b) => (b.onclick = () => W.open(b.dataset.tab)));
+    $('#ws-present', v)?.addEventListener('click', () => NL.present(W.lesson, W.gen, { level: W.state.level || 'medium' }));
     W.updateProgress();
     W.open(W.tab, true);
     NL.app.cleanup.push(() => W.stop.forEach((f) => f?.()));
@@ -230,7 +234,7 @@ points: 3-5 small chunks. workedExample: prefer an example from the pages (sourc
       const done = W.lesson.stats.sectionsDone?.[s.id];
       const ex = d.workedExample && d.workedExample.steps?.length ? d.workedExample : null;
       const laws = (d.lawIds || []).map(law).filter(Boolean).concat((s.lawIds || []).map(law).filter(Boolean)).filter((x, i, arr) => arr.indexOf(x) === i);
-      host.innerHTML = `<div class="sec-top"><h3>${esc(s.title)}</h3>${s.pages?.length ? `<span class="pref">${t('page')} ${s.pages.join('، ')}</span>` : ''}<button class="btn sm ghost" data-regen>${t('regenerate')}</button></div>
+      host.innerHTML = `<div class="sec-top"><h3>${esc(s.title)}</h3>${s.pages?.length ? `<span class="pref">${t('page')} ${s.pages.join('، ')}</span>` : ''}${W.teacher ? `<button class="btn sm" data-present>${t('present')}</button><button class="btn sm ghost" data-edit>${t('editPart')}</button>` : ''}<button class="btn sm ghost" data-regen>${t('regenerate')}</button></div>
         <div class="prose intro">${NL.md(d.intro)}</div>
         <div class="points">${(d.points || []).map((p, i) => `<section class="point"><span class="point-n">${i + 1}</span><div><h4>${esc(p.title)}</h4><div class="prose">${NL.md(p.body)}</div></div></section>`).join('')}</div>
         ${NL.safeSvg(d.diagram) ? `<figure class="diagram">${NL.safeSvg(d.diagram)}<figcaption>${esc(d.diagramCaption || '')} <span class="tag extra-tag">${NL.lang === 'ar' ? 'رسم توضيحي مولّد' : 'Generated illustration'}</span></figcaption></figure>` : ''}
@@ -244,6 +248,15 @@ points: 3-5 small chunks. workedExample: prefer an example from the pages (sourc
         <section class="checks"><h4 class="sub">${t('checkU')}</h4>${(d.checks || []).map((c, i) => `<div class="mcq" data-c="${i}"><p>${NL.md(c.q)}</p><div class="opts">${c.options.map((o, j) => `<button data-o="${j}">${NL.md(o).replace(/^<p>|<\/p>$/g, '')}</button>`).join('')}</div><div class="fb" hidden></div></div>`).join('')}</section>
         <div class="sec-actions"><button class="btn ${done ? 'ghost' : ''}" data-done>${done ? icon('check') + ' ' + t('doneMark') : t('markDone')}</button><button class="btn ghost" data-ask>${t('askAbout')}</button></div>`;
       $('[data-regen]', host).onclick = () => show(true);
+      $('[data-present]', host)?.addEventListener('click', () => NL.present(W.lesson, W.gen, { level, startSec: s.id }));
+      $('[data-edit]', host)?.addEventListener('click', () => {
+        const original = NL.store.builtin(W.lesson.id)?.gen?.explain?.[s.id]?.[level];
+        NL.editExplain(host, d, {
+          canReset: !!original,
+          onSave: (nd) => { if (nd) { W.gen.explain ||= {}; W.gen.explain[s.id] ||= {}; W.gen.explain[s.id][level] = nd; W.saveGen(); NL.toast(t('fSaved'), 'ok'); } paint(host, s, nd || d); },
+          onReset: () => { W.gen.explain[s.id][level] = structuredClone(original); W.saveGen(); NL.toast(t('fRestored'), 'ok'); paint(host, s, original); },
+        });
+      });
       const steps = $$('.steps-rev li', host);
       $('[data-step]', host)?.addEventListener('click', (e) => { const nx = steps.find((x) => x.hidden); if (nx) nx.hidden = false; if (!steps.some((x) => x.hidden)) { $('.ans', host).hidden = false; e.target.disabled = true; } });
       $('[data-all]', host)?.addEventListener('click', () => { steps.forEach((x) => (x.hidden = false)); $('.ans', host).hidden = false; });
@@ -357,7 +370,7 @@ points: 3-5 small chunks. workedExample: prefer an example from the pages (sourc
     const a = W.lesson.analysis, valid = a.laws.filter((l) => l.valid);
     const cfg = Object.assign({ topic: '', n: 5, diff: 'medium', types: ['mcq', 'tf', valid.length ? 'numeric' : 'conceptual'], mode: 'practice' }, W.state.quizCfg || {}, opts.preset || {});
     if (!valid.length) cfg.types = cfg.types.filter((x) => x !== 'numeric');
-    const hasBank = !!W.lesson.bank?.length;
+    let hasBank = !!W.lesson.bank?.length;
     if (cfg.src == null) cfg.src = hasBank ? 'bank' : 'ai';
     const drawSetup = () => {
       body.innerHTML = `${head(t('tab_quiz'))}
@@ -369,9 +382,20 @@ points: 3-5 small chunks. workedExample: prefer an example from the pages (sourc
           <fieldset class="ctl"><legend>${t('qzTypes')}</legend><div class="checks-row">${['mcq', 'tf', 'numeric', 'conceptual', 'graph'].map((ty) => `<label class="check ${ty === 'numeric' && !valid.length ? 'disabled' : ''}"><input type="checkbox" value="${ty}" ${cfg.types.includes(ty) ? 'checked' : ''} ${ty === 'numeric' && !valid.length ? 'disabled' : ''}> ${t('ty_' + ty)}</label>`).join('')}</div></fieldset>
           <fieldset class="ctl"><legend>${t('qzMode')}</legend><div class="checks-row">${['practice', 'exam'].map((m) => `<label class="check"><input type="radio" name="qz-mode" value="${m}" ${cfg.mode === m ? 'checked' : ''}> ${t('m_' + m)}</label>`).join('')}</div></fieldset>
           <button class="btn big" type="submit">${icon('spark')} ${t('qzStart')}</button>
-        </form>
+          ${W.teacher ? `<div class="teacher-row"><span class="fine">${t('teacherTools')}</span><button class="btn sm ghost" type="button" id="qz-bank">${t('bankManage')}</button>${hasBank ? `<button class="btn sm ghost" type="button" id="qz-print">${t('wsT')}</button>` : ''}</div>` : ''}
+        </form><div id="qz-teacher"></div>
         ${W.state.quizzes.length ? `<section><h3>${t('history')}</h3><ul class="qhist">${W.state.quizzes.slice(0, 8).map((q) => `<li><span class="score s-${q.score >= 80 ? 'hi' : q.score >= 50 ? 'mid' : 'lo'}">${q.score}%</span><span>${q.correct}/${q.total} · ${t('m_' + q.mode).split(':')[0]} · ${t('d_' + q.diff)}</span><span class="fine">${NL.ago(q.at)}</span></li>`).join('')}</ul></section>` : ''}`;
       $('#qz-topic', body).value = cfg.topic;
+      $('#qz-bank', body)?.addEventListener('click', () => NL.manageBank($('#qz-teacher', body), W.lesson, {
+        onSave: (bank) => { W.lesson.bank = bank; W.gen.bank = bank; W.saveGen(); hasBank = bank.length > 0; },
+        onClose: () => drawSetup(),
+      }));
+      $('#qz-print', body)?.addEventListener('click', () => {
+        const c = { ...cfg, topic: $('#qz-topic', body).value, types: $$('.checks-row input[type=checkbox]:checked', body).map((x) => x.value) };
+        if (!c.types.length) c.types = ['mcq', 'tf', 'numeric', 'graph'];
+        const qs = fromBank({ ...c, print: true }); if (!qs.length) return NL.toast(NL.lang === 'ar' ? 'لا توجد أسئلة بهذه الإعدادات' : 'No questions match', 'warn');
+        NL.printWorksheet(W.lesson, qs);
+      });
       $$('[data-n]', body).forEach((b) => (b.onclick = () => { cfg.n = +b.dataset.n; $$('[data-n]', body).forEach((x) => x.setAttribute('aria-checked', x === b)); }));
       $$('[data-d]', body).forEach((b) => (b.onclick = () => { cfg.diff = b.dataset.d; $$('[data-d]', body).forEach((x) => x.setAttribute('aria-checked', x === b)); }));
       $('#qz-form', body).onsubmit = (e) => {
@@ -384,7 +408,7 @@ points: 3-5 small chunks. workedExample: prefer an example from the pages (sourc
     };
     const fromBank = (c) => {
       const rank = { easy: 0, medium: 1, hard: 2 }, want = rank[c.diff] ?? 1;
-      let pool = W.lesson.bank.filter((q) => c.types.includes(q.type) && (q.type !== 'conceptual' || ai.ready));
+      let pool = W.lesson.bank.filter((q) => c.types.includes(q.type) && (q.type !== 'conceptual' || ai.ready || c.print));
       if (c.weak?.length) pool = pool.filter((q) => c.weak.includes(q.conceptId));
       else if (c.topic.startsWith('s:')) pool = pool.filter((q) => q.sectionId === c.topic.slice(2));
       else if (c.topic.startsWith('c:')) { const cid = c.topic.slice(2); pool = pool.filter((q) => q.conceptId === cid || W.lesson.analysis.sections.find((x) => x.id === q.sectionId)?.conceptIds.includes(cid)); }

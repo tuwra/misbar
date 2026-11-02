@@ -319,11 +319,12 @@
   /* ---------- sign-in (accounts are defined on the server) ---------- */
   NL.auth = {
     required: false, user: null, token: NL.lsGet('token', ''),
+    isTeacher() { return this.role === 'teacher'; },
     header() { return this.token ? { Authorization: 'Bearer ' + this.token } : {}; },
     async init() {
       try {
         const j = await (await fetch('api/login', { cache: 'no-store', headers: this.header() })).json();
-        this.required = !!j.required; this.user = j.user || null;
+        this.required = !!j.required; this.user = j.user || null; this.role = j.role || (this.required ? null : 'teacher');
         if (!this.user) { this.token = ''; NL.lsSet('token', ''); }
       } catch { this.required = false; this.user = null; }
     },
@@ -331,7 +332,7 @@
       const r = await fetch('api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw j.error || { code: 'bad_login' };
-      this.token = j.token; this.user = j.user; NL.lsSet('token', j.token);
+      this.token = j.token; this.user = j.user; this.role = j.role || 'student'; NL.lsSet('token', j.token);
     },
     signOut() { this.token = ''; this.user = null; NL.lsSet('token', ''); location.hash = ''; location.reload(); },
   };
