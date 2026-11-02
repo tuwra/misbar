@@ -1,0 +1,18 @@
+# One-click hosting on Render: https://render.com/deploy?repo=https://github.com/tuwra/misbar
+services:
+  - type: web
+    name: misbar
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/login
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: MISBAR_USERS
+        sync: false
+      - key: MISBAR_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
