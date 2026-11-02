@@ -608,17 +608,26 @@ table.sym td:last-child { color: var(--mute); font-family: var(--f-mono); text-a
 .minis { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
 .mini { padding: 14px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); display: grid; gap: 8px; }
 .mini .ans { background: var(--ok-soft); padding: 8px 10px; border-radius: 8px; }
-/* concept map */
+/* concept map: mind map */
 .cmap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--s-4); }
 @media (max-width: 960px) { .cmap { grid-template-columns: 1fr; } }
-#cmap-svg { width: 100%; height: auto; border-radius: var(--r-lg); border: 1px solid var(--line); background: radial-gradient(500px 300px at 50% 50%, var(--sig-soft), transparent 70%), var(--bg-2); }
-.cm-link line { stroke: var(--line-2); stroke-width: 1.6; } .cm-link.weak line { stroke-dasharray: 3 5; opacity: .6; } .cm-link.on line { stroke: var(--accent); stroke-width: 2.2; }
-.cm-label { fill: var(--mute); font: 10.5px var(--f-body); paint-order: stroke; stroke: var(--bg-2); stroke-width: 4px; } .cm-link.on .cm-label { fill: var(--fg); }
-.cm-arrow { fill: var(--line-2); }
-.cm-node { cursor: pointer; } .cm-node rect { fill: var(--surface); stroke: var(--line-2); stroke-width: 1.4; transition: fill .2s; }
-.cm-node text { fill: var(--fg); font: 600 13px var(--f-body); pointer-events: none; }
-.cm-node.on rect { fill: var(--accent); stroke: var(--accent); } .cm-node.on text { fill: var(--accent-ink); }
-.cm-node.dim { opacity: .45; } .cm-node:focus-visible rect { stroke: var(--signal); stroke-width: 2.5; }
+.cmap-stage { border-radius: var(--r-lg); border: 1px solid var(--line); background: radial-gradient(600px 400px at 50% 50%, var(--sig-soft), transparent 70%), var(--bg-2); overflow: hidden; }
+#cmap-svg { display: block; width: 100%; height: clamp(420px, 68vh, 760px); cursor: grab; touch-action: none; }
+.mm-node rect { stroke-width: 1.6; transition: opacity .2s, fill .2s; }
+.mm-node text { font: 600 14px var(--f-body); fill: var(--fg); pointer-events: none; }
+.mm-node.k-root rect { fill: var(--accent); stroke: var(--accent); } .mm-node.k-root text { fill: var(--accent-ink); font: 700 19px var(--f-display); }
+.mm-node.k-sec rect { fill: var(--surface); stroke-width: 2.4; } .mm-node.k-sec text { font: 700 14.5px var(--f-display); }
+.mm-node.k-leaf rect { fill: var(--surface); stroke: var(--line-2); } .mm-node.k-leaf { cursor: pointer; }
+.mm-node.k-leaf:hover rect, .mm-node.k-leaf:focus-visible rect { stroke-width: 2.4; }
+.mm-node.on rect { fill: var(--accent) !important; stroke: var(--accent) !important; } .mm-node.on text { fill: var(--accent-ink); }
+.mm-node.near rect { stroke-width: 2.6; } .mm-node.dim { opacity: .38; }
+.mm-link { fill: none; stroke-linecap: round; } .mm-link.trunk { stroke-width: 4; opacity: .85; } .mm-link.branch { stroke-width: 2; opacity: .6; }
+.mm-rel path { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-dasharray: 6 5; } .mm-rel text { font: 600 12px var(--f-body); fill: var(--fg); paint-order: stroke; stroke: var(--bg-2); stroke-width: 5px; }
+.mm-rel.faint path { stroke: var(--mute); opacity: .35; stroke-width: 1.4; } .mm-rel.faint text { display: none; }
+.b0 { --b: #5CC8FF; } .b1 { --b: #F2B544; } .b2 { --b: #4ADE9A; } .b3 { --b: #A78BFA; } .b4 { --b: #FF8A65; } .b5 { --b: #F472B6; } .b6 { --b: #2DD4BF; }
+.mm-link[class*=" b"] { stroke: var(--b); } .mm-node.k-sec rect { stroke: var(--b); } .mm-node.k-leaf rect { stroke: color-mix(in srgb, var(--b) 55%, var(--line-2)); }
+.mm-node.k-sec text { fill: var(--fg); }
+#cm-rel.on { border-color: var(--accent); color: var(--accent); }
 .cmap-panel { display: grid; gap: 10px; align-content: start; padding: 18px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); }
 .cmap-panel .pref, .cmap-panel .tag { justify-self: start; }
 .cmap-panel ul { margin: 0; padding-inline-start: 1.2em; display: grid; gap: 4px; font-size: .9rem; }

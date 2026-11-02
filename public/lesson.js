@@ -2,6 +2,7 @@
 (function () {
   const { $, $$, esc, t, tt, fmt, uid, store, ai, icon } = NL;
   NL.addT({
+    cmAll: ['أظهر كل العلاقات', 'Show all links'], cmPick: ['اضغط أي مفهوم لترى تعريفه والمفاهيم المرتبطة به. اضغط عنوان جزء لتفتح شرحه.', 'Tap a concept to see its definition and links. Tap a part to open its explanation.'], cmOther: ['مفاهيم أخرى', 'Other concepts'],
     tab_3d: ['شرح ثلاثي الأبعاد', '3D explainer'], s3dLead: ['شاهد كل آلة تعمل أمامك، وغيّر المتغيرات لترى القوى والمسافات والكفاءة تتغير لحظيًا.', 'Watch each machine work, and change the variables to see forces, distances and efficiency update live.'],
     bankSrc: ['مصدر الأسئلة', 'Question source'], src_bank: ['بنك أسئلة الدرس الجاهز', 'The lesson’s ready question bank'], src_ai: ['أسئلة جديدة بالذكاء الاصطناعي', 'New AI-written questions'],
     solvedT: ['مسائل الكتاب محلولة خطوة بخطوة', 'Book problems solved step by step'], problemN: ['مسألة {n}', 'Problem {n}'], selfCheck: ['قارن تفسيرك بالتفسير النموذجي', 'Compare with the model explanation'], selfRate: ['كيف كان تفسيرك؟', 'How did you do?'], rate_full: ['مطابق', 'Matched it'], rate_part: ['جزئي', 'Partly'], rate_miss: ['فاتني الكثير', 'Missed a lot'],
@@ -626,51 +627,98 @@ Set "understood": false if the problem cannot be read or is not a solvable probl
     load();
   };
 
-  /* ---------- concept map ---------- */
+  /* ---------- concept map: a two-sided mind map (lesson → parts → concepts); cross links appear on focus ---------- */
   R.map = (body, opts) => {
     const a = W.lesson.analysis;
-    body.innerHTML = `${head(t('tab_map'), t('mapLead'))}<div class="cmap"><svg id="cmap-svg" role="img" aria-label="${t('tab_map')}"></svg><aside class="cmap-panel" id="cmap-panel"></aside></div>`;
+    body.innerHTML = `${head(t('tab_map'), t('mapLead'), `<div class="row gap wrap"><button class="btn sm ghost" id="cm-rel" aria-pressed="false">${t('cmAll')}</button><button class="btn sm ghost" id="cm-fit">${t('grFit')}</button></div>`)}
+      <div class="cmap"><div class="cmap-stage"><svg id="cmap-svg" role="img" aria-label="${t('tab_map')}"></svg></div><aside class="cmap-panel" id="cmap-panel"><p class="fine">${t('cmPick')}</p></aside></div>`;
     if (a.concepts.length < 2) { $('.cmap', body).innerHTML = `<div class="empty-mini">${t('noRelations')}</div>`; return; }
-    const Wd = 900, H = 560, svg = d3.select('#cmap-svg').attr('viewBox', `0 0 ${Wd} ${H}`);
-    const nodes = a.concepts.map((c) => ({ id: c.id, c, deg: 0 })), byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
-    const links = a.relations.map((r) => ({ source: r.from, target: r.to, label: r.label }));
-    links.forEach((l) => { byId[l.source].deg++; byId[l.target].deg++; });
-    // concepts that share a section get a faint link, so isolated nodes still sit near their part of the lesson
-    a.sections.forEach((s) => { const ids = s.conceptIds.filter((id) => byId[id]); for (let i = 1; i < ids.length; i++) if (!links.some((l) => (l.source === ids[i - 1] && l.target === ids[i]) || (l.source === ids[i] && l.target === ids[i - 1]))) links.push({ source: ids[i - 1], target: ids[i], weak: true }); });
-    svg.append('defs').html(`<marker id="arrowhead" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" class="cm-arrow"/></marker>`);
-    const sim = d3.forceSimulation(nodes).force('link', d3.forceLink(links).id((d) => d.id).distance((l) => (l.weak ? 140 : 120)).strength((l) => (l.weak ? 0.15 : 0.6)))
-      .force('charge', d3.forceManyBody().strength(-520)).force('center', d3.forceCenter(Wd / 2, H / 2)).force('collide', d3.forceCollide(58)).force('x', d3.forceX(Wd / 2).strength(0.04)).force('y', d3.forceY(H / 2).strength(0.07)).stop();
-    for (let i = 0; i < 320; i++) sim.tick();
-    nodes.forEach((n) => { n.x = NL.clamp(n.x, 70, Wd - 70); n.y = NL.clamp(n.y, 30, H - 30); });
-    const gL = svg.append('g'), gN = svg.append('g');
-    const link = gL.selectAll('g').data(links).join('g').attr('class', (d) => 'cm-link' + (d.weak ? ' weak' : ''));
-    link.append('line').attr('marker-end', (d) => (d.weak ? null : 'url(#arrowhead)'));
-    link.append('text').attr('class', 'cm-label').attr('text-anchor', 'middle').text((d) => d.label || '');
-    const node = gN.selectAll('g').data(nodes).join('g').attr('class', 'cm-node').attr('tabindex', 0).attr('role', 'button');
-    node.append('rect').attr('rx', 14);
-    node.append('text').attr('text-anchor', 'middle').attr('dy', 5).text((d) => d.c.name);
-    node.each(function (d) { const tw = this.querySelector('text').getComputedTextLength?.() || d.c.name.length * 8; d.w = Math.max(70, tw + 28); d3.select(this).select('rect').attr('x', -d.w / 2).attr('y', -18).attr('width', d.w).attr('height', 36); });
-    const place = () => {
-      link.select('line').each(function (d) { const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y, len = Math.hypot(dx, dy) || 1, ex = dx / len, ey = dy / len; const cut = (n) => Math.min(Math.abs(n.w / 2 / (ex || 1e-9)), Math.abs(18 / (ey || 1e-9))); d3.select(this).attr('x1', d.source.x + ex * cut(d.source)).attr('y1', d.source.y + ey * cut(d.source)).attr('x2', d.target.x - ex * (cut(d.target) + 4)).attr('y2', d.target.y - ey * (cut(d.target) + 4)); });
-      link.select('text').attr('x', (d) => (d.source.x + d.target.x) / 2).attr('y', (d) => (d.source.y + d.target.y) / 2 - 6);
-      node.attr('transform', (d) => `translate(${d.x},${d.y})`);
+    // every concept appears once, under the first part that lists it
+    const seen = new Set(), groups = a.sections.map((sec, i) => ({ sec, i, items: sec.conceptIds.map(concept).filter((c) => c && !seen.has(c.id) && seen.add(c.id)) }));
+    const rest = a.concepts.filter((c) => !seen.has(c.id));
+    if (rest.length) groups.push({ sec: { id: '_rest', title: t('cmOther') }, i: groups.length, items: rest });
+    const live = groups.filter((g) => g.items.length);
+    // split parts between the two sides with roughly equal height; the first parts go on the reading-start side
+    const total = live.reduce((n, g) => n + g.items.length + 1, 0), startSide = NL.lang === 'ar' ? 1 : -1;
+    // wide screens: parts on both sides; narrow screens: one side, read top to bottom
+    const wide = ($('.cmap-stage', body)?.clientWidth || 0) >= 820;
+    const oneSide = NL.lang === 'ar' ? -1 : 1; // one-sided maps grow away from the reading start
+    let acc = 0; live.forEach((g) => { g.side = !wide ? oneSide : acc < total / 2 ? startSide : -startSide; acc += g.items.length + 1; });
+    const ROW = 46, GAP = 30, SX = wide ? 250 : 200, LX = wide ? 480 : 400;
+    const nodes = [], links = [], byId = {};
+    const root = { id: '_root', kind: 'root', label: W.lesson.title, x: 0, y: 0 }; nodes.push(root);
+    for (const side of [1, -1]) {
+      const gs = live.filter((g) => g.side === side), height = gs.reduce((n, g) => n + g.items.length * ROW + GAP, -GAP);
+      let y = -height / 2;
+      gs.forEach((g) => {
+        const h = g.items.length * ROW, sn = { id: 's:' + g.sec.id, kind: 'sec', label: g.sec.title, x: side * SX, y: y + h / 2 - ROW / 2, side, b: g.i % 7, secId: g.sec.id };
+        nodes.push(sn); links.push({ a: root, b: sn, kind: 'trunk', bi: sn.b });
+        g.items.forEach((c, k) => { const n = { id: c.id, kind: 'leaf', label: c.name, c, x: side * LX, y: y + k * ROW, side, b: sn.b }; nodes.push(n); byId[c.id] = n; links.push({ a: sn, b: n, kind: 'branch', bi: sn.b }); });
+        y += h + GAP;
+      });
+    }
+    const svg = d3.select('#cmap-svg'), zoomG = svg.append('g'), gL = zoomG.append('g'), gX = zoomG.append('g'), gN = zoomG.append('g');
+    const curve = (p, q) => { const mx = (p.x + q.x) / 2; return `M${p.x},${p.y} C${mx},${p.y} ${mx},${q.y} ${q.x},${q.y}`; };
+    // nodes first, so edges can start at their measured edges
+    const node = gN.selectAll('g').data(nodes).join('g').attr('class', (d) => `mm-node k-${d.kind} b${d.b ?? ''}`).attr('transform', (d) => `translate(${d.x},${d.y})`)
+      .attr('tabindex', (d) => (d.kind === 'leaf' ? 0 : null)).attr('role', (d) => (d.kind === 'leaf' ? 'button' : null));
+    node.append('rect').attr('rx', (d) => (d.kind === 'root' ? 26 : 12));
+    node.append('text').attr('dy', '0.35em').text((d) => d.label);
+    node.each(function (d) {
+      const tw = this.querySelector('text').getComputedTextLength?.() || d.label.length * 8, padX = d.kind === 'root' ? 26 : 16, h = d.kind === 'root' ? 52 : d.kind === 'sec' ? 40 : 34;
+      d.w = Math.min(Math.max(tw + padX * 2, d.kind === 'leaf' ? 90 : 120), 360); d.h = h;
+      // leaves and parts grow outward from the centre
+      const xOff = d.kind === 'root' ? -d.w / 2 : d.side > 0 ? 0 : -d.w;
+      d.inX = d.kind === 'root' ? 0 : d.side > 0 ? d.x : d.x; d.outX = d.kind === 'root' ? 0 : d.x + d.side * d.w;
+      d3.select(this).select('rect').attr('x', xOff).attr('y', -h / 2).attr('width', d.w).attr('height', h);
+      d3.select(this).select('text').attr('x', xOff + d.w / 2).attr('text-anchor', 'middle');
+    });
+    root.outL = -root.w / 2; root.outR = root.w / 2;
+    const ends = (l) => { const from = l.a.kind === 'root' ? { x: l.b.side > 0 ? root.outR : root.outL, y: 0 } : { x: l.a.outX, y: l.a.y }; return [from, { x: l.b.x, y: l.b.y }]; };
+    gL.selectAll('path').data(links).join('path').attr('class', (l) => `mm-link ${l.kind} b${l.bi}`).attr('d', (l) => curve(...ends(l)));
+    // fit the whole map, but never shrink text below a readable size; beyond that the map pans
+    const svgEl = svg.node(), fit = () => {
+      const bb = zoomG.node().getBBox(), pad = 40, sw = svgEl.clientWidth || 600, sh = svgEl.clientHeight || 500;
+      let w = bb.width + pad * 2, h = bb.height + pad * 2;
+      const k = Math.min(sw / w, sh / h), minK = 0.72;
+      if (k < minK) { w = sw / minK; h = sh / minK; }
+      else { const r = sw / sh; if (w / h < r) w = h * r; else h = w / r; }
+      const cy = bb.y + bb.height / 2;
+      // when the map is wider than the view, open on the lesson title and let the reader pan outward
+      let x = bb.x + bb.width / 2 - w / 2;
+      if (w < bb.width + pad * 2 && !wide) x = oneSide < 0 ? bb.x + bb.width + pad - w : bb.x - pad;
+      svg.attr('viewBox', [x, cy - h / 2, w, h].join(' ')); svg.call(zoom.transform, d3.zoomIdentity);
     };
-    place();
-    // zoom the drawing to the laid-out graph so small maps stay readable
-    const x0 = d3.min(nodes, (n) => n.x - n.w / 2) - 40, x1 = d3.max(nodes, (n) => n.x + n.w / 2) + 40, y0 = d3.min(nodes, (n) => n.y) - 50, y1 = d3.max(nodes, (n) => n.y) + 50;
-    const vw = Math.max(x1 - x0, 420), vh = Math.max(y1 - y0, 260);
-    svg.attr('viewBox', `${(x0 + x1) / 2 - vw / 2} ${(y0 + y1) / 2 - vh / 2} ${vw} ${vh}`);
-    node.call(d3.drag().on('drag', (e, d) => { d.x = NL.clamp(e.x, 40, Wd - 40); d.y = NL.clamp(e.y, 20, H - 20); place(); }));
+    const zoom = d3.zoom().scaleExtent([0.5, 4]).on('zoom', (e) => zoomG.attr('transform', e.transform));
+    svg.call(zoom).on('dblclick.zoom', null);
+    fit();
+    $('#cm-fit', body).onclick = fit;
+    // cross links between concepts, drawn as arcs between the two leaves
+    const relPath = (r) => {
+      const p = byId[r.from], q = byId[r.to]; if (!p || !q) return null;
+      const pe = { x: p.side === q.side ? p.outX : p.x + (q.x > p.x ? (p.side > 0 ? 0 : 0) : 0), y: p.y }, qe = { x: q.side === p.side ? q.outX : q.x, y: q.y };
+      if (p.side === q.side) { const bulge = p.side * (60 + Math.abs(p.y - q.y) * 0.25); return { d: `M${pe.x},${pe.y} C${pe.x + bulge},${pe.y} ${qe.x + bulge},${qe.y} ${qe.x},${qe.y}`, mx: pe.x + bulge * 0.75, my: (pe.y + qe.y) / 2 }; }
+      return { d: `M${p.x},${p.y} C${p.x - p.side * 160},${p.y} ${q.x - q.side * 160},${q.y} ${q.x},${q.y}`, mx: 0, my: (p.y + q.y) / 2 };
+    };
+    const drawRels = (list, strong) => {
+      const data = list.map((r) => ({ r, g: relPath(r) })).filter((x) => x.g);
+      const sel = gX.selectAll('g').data(data, (d) => d.r.from + '>' + d.r.to).join((en) => { const g = en.append('g'); g.append('path'); g.append('text'); return g; });
+      sel.attr('class', `mm-rel${strong ? ' strong' : ''}`);
+      sel.select('path').attr('d', (d) => d.g.d);
+      sel.select('text').attr('x', (d) => d.g.mx).attr('y', (d) => d.g.my - 6).attr('text-anchor', 'middle').text((d) => (strong ? d.r.label : ''));
+    };
+    let showAll = false, focused = null;
     const panel = $('#cmap-panel', body);
     const focus = (id) => {
-      const c = concept(id); if (!c) return;
-      node.classed('on', (d) => d.id === id).classed('dim', (d) => d.id !== id && !links.some((l) => !l.weak && ((l.source.id === id && l.target.id === d.id) || (l.target.id === id && l.source.id === d.id))));
-      link.classed('on', (l) => l.source.id === id || l.target.id === id);
-      const rel = a.relations.filter((r) => r.from === id || r.to === id);
+      const c = concept(id); if (!c) return; focused = id;
+      const rel = a.relations.filter((r) => r.from === id || r.to === id), near = new Set([id, ...rel.map((r) => (r.from === id ? r.to : r.from))]);
+      node.classed('on', (d) => d.id === id).classed('near', (d) => d.id !== id && near.has(d.id)).classed('dim', (d) => d.kind === 'leaf' && !near.has(d.id));
+      drawRels(showAll ? a.relations : rel, true);
+      gX.selectAll('g').classed('faint', (d) => !(d.r.from === id || d.r.to === id));
       const lawsHere = a.laws.filter((l) => a.sections.some((s) => s.conceptIds.includes(id) && s.lawIds.includes(l.id)));
       const exs = a.examples.filter((e) => (e.title + e.problem).includes(c.name)).slice(0, 2);
       panel.innerHTML = `<h3>${esc(c.name)}</h3>${c.page ? `<span class="pref">${t('page')} ${c.page}</span>` : ''}${c.source === 'extra' ? `<span class="tag extra-tag">${t('extra')}</span>` : ''}<div class="prose">${NL.md(c.definition)}</div>
-        ${rel.length ? `<h4>${t('linksT')}</h4><ul>${rel.map((r) => `<li>${r.from === id ? `${esc(r.label)} → <button class="link" data-f="${r.to}">${esc(concept(r.to)?.name)}</button>` : `<button class="link" data-f="${r.from}">${esc(concept(r.from)?.name)}</button> → ${esc(r.label)}`}</li>`).join('')}</ul>` : ''}
+        ${rel.length ? `<h4>${t('linksT')}</h4><ul>${rel.map((r) => `<li>${r.from === id ? `${esc(r.label)} ← <button class="link" data-f="${r.to}">${esc(concept(r.to)?.name)}</button>` : `<button class="link" data-f="${r.from}">${esc(concept(r.from)?.name)}</button> ← ${esc(r.label)}`}</li>`).join('')}</ul>` : ''}
         ${lawsHere.length ? `<h4>${t('lawsT')}</h4>${lawsHere.map((l) => `<div class="mathblock">${NL.tex(l.latex || l.equation, true)}</div>`).join('')}` : ''}
         ${exs.length ? `<h4>${t('examplesT')}</h4>${exs.map((e) => `<p class="fine">${esc(e.title || e.problem.slice(0, 120))}</p>`).join('')}` : ''}
         <div class="row gap wrap"><button class="btn sm" data-more>${t('explainMore')}</button><button class="btn sm ghost" data-quiz>${t('quizMe')}</button></div>`;
@@ -678,8 +726,13 @@ Set "understood": false if the problem cannot be read or is not a solvable probl
       $('[data-more]', panel).onclick = () => W.open('assistant', false, { prefill: (NL.lang === 'ar' ? `اشرح لي مفهوم «${c.name}» أكثر، وكيف يرتبط ببقية الدرس.` : `Explain “${c.name}” in more depth and how it connects to the rest of the lesson.`) });
       $('[data-quiz]', panel).onclick = () => W.open('quiz', false, { preset: { topic: 'c:' + id, n: 5, mode: 'practice', auto: true } });
     };
-    node.on('click', (e, d) => focus(d.id)).on('keydown', (e, d) => { if (e.key === 'Enter') focus(d.id); });
-    focus(opts.focus || nodes.slice().sort((x, y) => y.deg - x.deg)[0].id);
+    $('#cm-rel', body).onclick = (e) => {
+      showAll = !showAll; e.currentTarget.setAttribute('aria-pressed', showAll); e.currentTarget.classList.toggle('on', showAll);
+      if (focused) focus(focused); else { drawRels(showAll ? a.relations : [], false); gX.selectAll('g').classed('faint', true); }
+    };
+    node.filter((d) => d.kind === 'leaf').on('click', (e, d) => focus(d.id)).on('keydown', (e, d) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); focus(d.id); } });
+    node.filter((d) => d.kind === 'sec' && d.secId !== '_rest').on('click', (e, d) => W.open('explain', false, { sec: d.secId })).style('cursor', 'pointer');
+    if (opts.focus) focus(opts.focus);
   };
 
   /* ---------- flashcards (Leitner boxes) ---------- */
