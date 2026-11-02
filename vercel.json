@@ -1,4 +1,4 @@
 {
-  "functions": { "api/ai.js": { "maxDuration": 300 }, "api/login.js": { "maxDuration": 10 } },
+  "functions": { "api/ai.js": { "maxDuration": 60 }, "api/login.js": { "maxDuration": 10 } },
   "outputDirectory": "public"
 }
