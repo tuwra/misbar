@@ -2,3 +2,5 @@ node_modules
 .env
 .vercel
 tools/film/*.aiff
+voice/
+narr.wav

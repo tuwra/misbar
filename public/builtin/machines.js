@@ -374,9 +374,9 @@ a. $IMA = r_e/r_r = 4.00/35.6 = 0.112$. b. $MA = (e/100) \\times IMA = (95.0/100
 /* Visual and kinesthetic material for the machines lesson: the narrated 3D video and the drag-and-sort activities. */
 Object.assign(NL.BUILTIN.find((l) => l.id === 'builtin-machines'), {
   videos: [{
-    title: 'الآلات: شرح بالمجسمات ثلاثية الأبعاد', sub: 'تعليق صوتي وترجمة مكتوبة · 3:18 · من محتوى الكتاب ص 109–117',
+    title: 'الآلات: شرح بالمجسمات ثلاثية الأبعاد', sub: 'تعليق صوتي وترجمة مكتوبة · 3:03 · من محتوى الكتاب ص 109–117',
     src: 'builtin/machines/video.mp4', poster: 'builtin/machines/video.jpg', vtt: 'builtin/machines/video.vtt',
-    chapters: [{ t: 0, title: 'المقدمة' }, { t: 6.7, title: 'الآلة وفوائدها' }, { t: 19.9, title: 'الرافعة: المقاومة والقوة المسلطة' }, { t: 45.6, title: 'الفائدة الميكانيكية المثالية' }, { t: 68.1, title: 'الكفاءة' }, { t: 86.6, title: 'البكرات' }, { t: 112.3, title: 'العجلة والمحور' }, { t: 128.9, title: 'المستوى المائل' }, { t: 144.1, title: 'الدراجة: آلة مركّبة' }, { t: 179.4, title: 'الخلاصة' }],
+    chapters: [{ t: 0, title: 'المقدمة' }, { t: 6.5, title: 'الآلة وفوائدها' }, { t: 19.1, title: 'الرافعة: المقاومة والقوة المسلطة' }, { t: 43.3, title: 'الفائدة الميكانيكية المثالية' }, { t: 61.7, title: 'الكفاءة' }, { t: 78.7, title: 'البكرات' }, { t: 102.7, title: 'العجلة والمحور' }, { t: 117.4, title: 'المستوى المائل' }, { t: 131.3, title: 'الدراجة: آلة مركّبة' }, { t: 164.3, title: 'الخلاصة' }],
   }],
   sortActs: [
     {
