@@ -77,9 +77,9 @@
 
   const W = (NL.ws = {});
   const TABS = {
-    overview: { g: 'learn', i: 'M4 5h16v14H4zM4 10h16' }, '3d': { g: 'learn', i: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5' }, explain: { g: 'learn', i: 'M4 6h16M4 12h10M4 18h13' }, assistant: { g: 'learn', i: 'M5 5h14v10H9l-4 4z' }, lab: { g: 'learn', i: 'M9 3v6L4 19a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2L15 9V3M8 3h8' },
+    overview: { g: 'learn', i: 'M4 5h16v14H4zM4 10h16' }, styles: { g: 'learn', i: 'M12 4a3 3 0 1 0 0 6a3 3 0 1 0 0-6M5 20a7 7 0 0 1 14 0M3 9l2 2M21 9l-2 2' }, video: { g: 'learn', i: 'M4 6h12v12H4zM16 10l5-3v10l-5-3' }, listen: { g: 'learn', i: 'M4 14v-2a8 8 0 0 1 16 0v2M4 14h3v6H4zM17 14h3v6h-3z' }, '3d': { g: 'learn', i: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5' }, explain: { g: 'learn', i: 'M4 6h16M4 12h10M4 18h13' }, assistant: { g: 'learn', i: 'M5 5h14v10H9l-4 4z' }, lab: { g: 'learn', i: 'M9 3v6L4 19a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2L15 9V3M8 3h8' },
     map: { g: 'learn', i: 'M6 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0M18 8m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0M12 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0M8 7l8 1M7 8l4 8M17 10l-4 6' }, atlas: { g: 'learn', i: 'M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14' },
-    quiz: { g: 'practice', i: 'M9 9a3 3 0 1 1 3 3v2M12 18h.01' }, solver: { g: 'practice', i: 'M5 4h14v16H5zM8 8h8M8 12h3M13 12h3M8 16h3M13 16h3' }, coach: { g: 'practice', i: 'M12 3a6 6 0 0 1 4 10.5V17H8v-3.5A6 6 0 0 1 12 3zM9 21h6' }, board: { g: 'practice', i: 'M3 5h18v12H3zM8 21l4-4 4 4M7 13l3-3 2 2 4-4' },
+    quiz: { g: 'practice', i: 'M9 9a3 3 0 1 1 3 3v2M12 18h.01' }, solver: { g: 'practice', i: 'M5 4h14v16H5zM8 8h8M8 12h3M13 12h3M8 16h3M13 16h3' }, coach: { g: 'practice', i: 'M12 3a6 6 0 0 1 4 10.5V17H8v-3.5A6 6 0 0 1 12 3zM9 21h6' }, board: { g: 'practice', i: 'M3 5h18v12H3zM8 21l4-4 4 4M7 13l3-3 2 2 4-4' }, sort: { g: 'practice', i: 'M9 11V5a2 2 0 0 1 4 0v6M13 10a2 2 0 0 1 4 0v3M9 11a2 2 0 0 0-4 0v3a7 7 0 0 0 14 0v-1' },
     summary: { g: 'review', i: 'M6 3h9l3 3v15H6zM9 9h6M9 13h6M9 17h4' }, cards: { g: 'review', i: 'M7 4h12v14H7zM4 7v13h12' }, mistakes: { g: 'review', i: 'M12 4l9 16H3zM12 10v4M12 17h.01' }, mastery: { g: 'review', i: 'M4 20V10M10 20V4M16 20v-7M22 20H2' }, sources: { g: 'review', i: 'M6 3h8l4 4v14H6zM14 3v4h4' },
   };
   const tabIcon = (k) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="${TABS[k].i}"/></svg>`;
@@ -88,7 +88,7 @@
     const a = l.analysis; if (!a) return ['overview'];
     const s = l.subject, hasLaws = a.laws.some((x) => x.valid), labby = ['physics', 'chemistry', 'math'].includes(s) || hasLaws || a.labs.length || a.functions.length;
     const geo = ['history', 'geography'].includes(s) || a.places.length;
-    return ['overview', l.scenes3d?.length && '3d', 'explain', 'assistant', labby && 'lab', 'map', geo && 'atlas', 'quiz', (hasLaws || a.examples.length || ['physics', 'chemistry', 'math'].includes(s)) && 'solver', 'coach', 'board', 'summary', 'cards', 'mistakes', 'mastery', 'sources'].filter(Boolean);
+    return ['overview', 'styles', 'video', l.scenes3d?.length && '3d', 'explain', 'listen', 'assistant', labby && 'lab', 'map', geo && 'atlas', 'quiz', 'sort', (hasLaws || a.examples.length || ['physics', 'chemistry', 'math'].includes(s)) && 'solver', 'coach', 'board', 'summary', 'cards', 'mistakes', 'mastery', 'sources'].filter(Boolean);
   }
 
   /* ---------- load + shell ---------- */
@@ -162,7 +162,8 @@
   }
   W.addMistake = (m) => { W.state.mistakes.unshift({ id: uid(), at: Date.now(), resolved: false, ...m }); W.state.mistakes = W.state.mistakes.slice(0, 200); W.saveState(); };
 
-  const R = {};
+  const R = (NL.wsR = {});
+  Object.assign(W, { head, withSpinner, needAI, RULES, tabIcon });
 
   function renderDraft(body) {
     body.innerHTML = `<div class="empty">${NL.coverSvg(W.lesson)}<h2>${t('draftT')}</h2><p>${t('draftS')}</p><button class="btn" id="add-c">${icon('plus')} ${t('addContent')}</button></div>`;
@@ -213,6 +214,7 @@
     body.innerHTML = `${head(t('tab_explain'), '', `<div class="seg" role="radiogroup" aria-label="${t('level')}">${['simple', 'medium', 'advanced'].map((lv) => `<button role="radio" data-lv="${lv}" aria-checked="${lv === level}">${t('lv_' + lv)}</button>`).join('')}</div>`)}
       <div class="ex-layout"><ol class="sec-list"></ol><article class="sec-body" id="sec-body"></article></div>`;
     const list = $('.sec-list', body);
+    W.stop.push(() => NL.speech.stop());
     const drawList = () => (list.innerHTML = a.sections.map((s, i) => `<li><button data-s="${s.id}" class="${s.id === sec ? 'on' : ''} ${W.lesson.stats.sectionsDone?.[s.id] ? 'done' : ''}"><span class="lmap-n">${W.lesson.stats.sectionsDone?.[s.id] ? icon('check') : i + 1}</span>${esc(s.title)}</button></li>`).join(''));
     drawList();
     list.onclick = (e) => { const b = e.target.closest('[data-s]'); if (b) { sec = b.dataset.s; drawList(); show(); } };
@@ -235,7 +237,7 @@ points: 3-5 small chunks. workedExample: prefer an example from the pages (sourc
       const done = W.lesson.stats.sectionsDone?.[s.id];
       const ex = d.workedExample && d.workedExample.steps?.length ? d.workedExample : null;
       const laws = (d.lawIds || []).map(law).filter(Boolean).concat((s.lawIds || []).map(law).filter(Boolean)).filter((x, i, arr) => arr.indexOf(x) === i);
-      host.innerHTML = `<div class="sec-top"><h3>${esc(s.title)}</h3>${s.pages?.length ? `<span class="pref">${t('page')} ${s.pages.join('، ')}</span>` : ''}${W.teacher ? `<button class="btn sm" data-present>${t('present')}</button><button class="btn sm ghost" data-edit>${t('editPart')}</button>` : ''}<button class="btn sm ghost" data-regen>${t('regenerate')}</button></div>
+      host.innerHTML = `<div class="sec-top"><h3>${esc(s.title)}</h3>${s.pages?.length ? `<span class="pref">${t('page')} ${s.pages.join('، ')}</span>` : ''}${W.teacher ? `<button class="btn sm" data-present>${t('present')}</button><button class="btn sm ghost" data-edit>${t('editPart')}</button>` : ''}<button class="btn sm ghost" data-listen>${NL.icons?.listen || ''}${t('listenThis')}</button><button class="btn sm ghost" data-regen>${t('regenerate')}</button></div>
         <div class="prose intro">${NL.md(d.intro)}</div>
         <div class="points">${(d.points || []).map((p, i) => `<section class="point"><span class="point-n">${i + 1}</span><div><h4>${esc(p.title)}</h4><div class="prose">${NL.md(p.body)}</div></div></section>`).join('')}</div>
         ${NL.safeSvg(d.diagram) ? `<figure class="diagram">${NL.safeSvg(d.diagram)}<figcaption>${esc(d.diagramCaption || '')} <span class="tag extra-tag">${NL.lang === 'ar' ? 'رسم توضيحي مولّد' : 'Generated illustration'}</span></figcaption></figure>` : ''}
@@ -249,6 +251,7 @@ points: 3-5 small chunks. workedExample: prefer an example from the pages (sourc
         <section class="checks"><h4 class="sub">${t('checkU')}</h4>${(d.checks || []).map((c, i) => `<div class="mcq" data-c="${i}"><p>${NL.md(c.q)}</p><div class="opts">${c.options.map((o, j) => `<button data-o="${j}">${NL.md(o).replace(/^<p>|<\/p>$/g, '')}</button>`).join('')}</div><div class="fb" hidden></div></div>`).join('')}</section>
         <div class="sec-actions"><button class="btn ${done ? 'ghost' : ''}" data-done>${done ? icon('check') + ' ' + t('doneMark') : t('markDone')}</button><button class="btn ghost" data-ask>${t('askAbout')}</button></div>`;
       $('[data-regen]', host).onclick = () => show(true);
+      $('[data-listen]', host).onclick = (e) => NL.speech.toggle(e.currentTarget, NL.speech.fromExplain(s, d));
       $('[data-present]', host)?.addEventListener('click', () => NL.present(W.lesson, W.gen, { level, startSec: s.id }));
       $('[data-edit]', host)?.addEventListener('click', () => {
         const original = NL.store.builtin(W.lesson.id)?.gen?.explain?.[s.id]?.[level];
@@ -594,7 +597,7 @@ Set "understood": false if the problem cannot be read or is not a solvable probl
   /* ---------- summary ---------- */
   R.summary = (body) => {
     const a = W.lesson.analysis; let detail = W.state.detail || 'standard';
-    body.innerHTML = `${head(t('tab_summary'), '', `<div class="row gap"><div class="seg">${['brief', 'standard', 'detailed'].map((d) => `<button role="radio" data-d="${d}" aria-checked="${d === detail}">${t('de_' + d)}</button>`).join('')}</div><button class="btn sm ghost" id="sum-copy">${t('copy')}</button></div>`)}<div id="sum"></div>`;
+    body.innerHTML = `${head(t('tab_summary'), '', `<div class="row gap"><div class="seg">${['brief', 'standard', 'detailed'].map((d) => `<button role="radio" data-d="${d}" aria-checked="${d === detail}">${t('de_' + d)}</button>`).join('')}</div><button class="btn sm ghost" id="sum-listen">${t('listenThis')}</button><button class="btn sm ghost" id="sum-copy">${t('copy')}</button></div>`)}<div id="sum"></div>`;
     // relations between variables computed from the laws themselves
     const rels = []; a.laws.filter((l) => l.valid).forEach((l) => {
       const P = NL.eq.parse(l.equation), y = P.lhsNode.isSymbolNode ? P.lhsNode.name : P.vars[0], sym = (v) => l.symbols.find((s) => s.var === v) || { name: v, tex: v };
@@ -623,6 +626,8 @@ Set "understood": false if the problem cannot be read or is not a solvable probl
       if (!d) return; W.gen.summary ||= {}; W.gen.summary[detail] = d; W.saveGen(); paint(d);
     };
     $$('[data-d]', body).forEach((b) => (b.onclick = () => { detail = W.state.detail = b.dataset.d; W.saveState(); $$('[data-d]', body).forEach((x) => x.setAttribute('aria-checked', x === b)); load(); }));
+    $('#sum-listen', body).onclick = (e) => NL.speech.toggle(e.currentTarget, [...$$('#sum h3, #sum li, #sum dt, #sum dd', body)].map((x) => x.innerText.trim()).filter(Boolean));
+    W.stop.push(() => NL.speech.stop());
     $('#sum-copy', body).onclick = async () => { const tx = $('#sum', body).innerText; try { await navigator.clipboard.writeText(tx); NL.toast(t('copied'), 'ok'); } catch { const r = document.createRange(); r.selectNodeContents($('#sum', body)); getSelection().removeAllRanges(); getSelection().addRange(r); } };
     load();
   };

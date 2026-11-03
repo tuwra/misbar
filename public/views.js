@@ -10,8 +10,8 @@
     how3: ['تتعلّم بطريقتك', 'Learn your way'], how3s: ['شرح ومختبر واختبارات وبطاقات وخرائط، كلها من درسك.', 'Explanations, labs, quizzes, cards and maps, all from your lesson.'],
     everySubject: ['أدوات تتغير بحسب المادة', 'Tools that change with the subject'],
     sv_physics: ['مختبر محاكاة بحسابات حقيقية', 'Simulations with real calculations'], sv_math: ['راسم دوال ولوح معادلات وسبورة', 'Grapher, equation pad and whiteboard'], sv_chemistry: ['معمل غازات ومعايرة وتخفيف', 'Gas, titration and dilution bench'], sv_history: ['أطلس تفاعلي وخط زمني', 'Interactive atlas and timeline'],
-    openBench: ['جرّب المختبر المفتوح', 'Try the open lab'], benchTitle: ['المختبر المفتوح', 'Open lab'], benchLead: ['كل المحاكاة متاحة هنا بدون درس. داخل الدرس تُختار التجارب المناسبة لمحتواه.', 'Every simulation is here without a lesson. Inside a lesson, the lab picks experiments that fit its content.'],
-    benchMath: ['الرياضيات', 'Math'],
+    openBench: ['جرّب المختبر المفتوح', 'Try the open lab'], benchTitle: ['المختبر المفتوح', 'Open lab'], benchLead: ['كل تجارب الفيزياء متاحة هنا بدون درس. داخل الدرس تُختار التجارب المناسبة لمحتواه.', 'Every simulation is here without a lesson. Inside a lesson, the lab picks experiments that fit its content.'],
+    benchMath: ['الرياضيات', 'Math'], benchTools: ['أدوات الحساب والرسم', 'Graphing and calculation tools'],
     filesBlocked: ['لا يمكن قراءة {n}. احفظه بصيغة {f} ثم ارفعه.', 'Cannot read {n}. Save it as {f} and upload again.'],
     fileFail: ['تعذّرت قراءة {n}: {m}', 'Could not read {n}: {m}'],
     unsupported: ['نوع الملف غير مدعوم: {n}', 'Unsupported file type: {n}'],
@@ -23,11 +23,16 @@
     imagesOff: ['قراءة الصور غير متاحة في هذا العرض. يمكنك رفع PDF نصي أو Word أو لصق النص.', 'Image reading is not available in this view. Upload a text PDF or Word file, or paste the text.'],
     statusReady: ['جاهز للتحليل', 'Ready to analyze'],
     readyMade: ['درس جاهز', 'Ready-made'],
+    homeStyles: ['تعلّم بالطريقة التي تناسبك', 'Learn the way that suits you'],
+    hs_v: ['فيديو مشروح ومجسمات ثلاثية الأبعاد تتحرك أمامك، وخرائط مفاهيم ملوّنة.', 'Narrated video, moving 3D models and colourful concept maps.'],
+    hs_a: ['كل جزء من الدرس يُقرأ لك بصوت مسموع مع تظليل النص، وفيديو بتعليق صوتي.', 'Every part of the lesson read aloud with highlighting, plus a narrated video.'],
+    hs_k: ['مختبر محاكاة تغيّر فيه المتغيرات بيدك، ونشاطات سحب وإفلات، وسبورة للكتابة.', 'A simulation lab where you change variables by hand, drag-and-sort activities and a whiteboard.'],
   });
 
   /* ---------- shell ---------- */
   NL.renderShell = () => {
     $('#brand-name').textContent = t('brand');
+    const ck = $('#cr-k'); if (ck) ck.textContent = t('creditsK');
     $('#nav-home').textContent = t('home');
     $('#nav-lib').textContent = t('library');
     $('#lang-btn').textContent = t('lang');
@@ -165,8 +170,8 @@
         <ol class="how-steps">${[1, 2, 3].map((i) => `<li><span class="how-n">${i}</span><div><h3>${t('how' + i)}</h3><p>${t('how' + i + 's')}</p></div></li>`).join('')}</ol>
       </section>
       <section class="subjects">
-        <h2>${t('everySubject')}</h2>
-        <div class="subj-grid">${['physics', 'math', 'chemistry', 'history'].map((s) => `<div class="subj s-${s}">${NL.coverSvg({ id: s + 'x', subject: s })}<div><h3>${NL.subjectName(s)}</h3><p>${t('sv_' + s)}</p></div></div>`).join('')}</div>
+        <h2>${t('homeStyles')}</h2>
+        <div class="vak-cards">${['v', 'a', 'k'].map((k) => `<div class="vak-card vk-${k}"><div class="vak-ic">${NL.styleIcon(k)}</div><h3>${t('st_' + k)}</h3><p>${t('hs_' + k)}</p></div>`).join('')}</div>
         <a class="btn ghost" href="#bench" data-go="bench">${t('openBench')} ${icon('arrow')}</a>
       </section>`;
     bindGo(v); bindCards(v);
@@ -268,7 +273,7 @@
         <div class="row gap wrap"><button class="btn ghost sm" id="bk-export">${icon('down')} ${t('exportB')}</button><label class="btn ghost sm">${icon('up')} ${t('importB')}<input type="file" accept="application/json,.json" id="bk-import" hidden></label><a class="btn" href="#new" data-go="new">${icon('plus')} ${t('newLesson')}</a></div></div>
       <div class="filters">
         <label class="search">${icon('search')}<input id="lib-q" type="search" placeholder="${t('search')}" value="${esc(prefs.q)}" aria-label="${t('search')}"></label>
-        <select id="lib-subj" aria-label="${t('subject')}"><option value="">${t('allSubjects')}</option>${NL.SUBJECTS.map((s) => `<option value="${s}">${NL.subjectName(s)}</option>`).join('')}</select>
+        <select id="lib-subj" hidden aria-label="${t('subject')}"><option value="">${t('allSubjects')}</option>${NL.SUBJECTS.map((s) => `<option value="${s}">${NL.subjectName(s)}</option>`).join('')}</select>
         <select id="lib-unit" aria-label="${t('unit')}"></select>
         <select id="lib-sort" aria-label="sort"><option value="recent">${t('sortRecent')}</option><option value="created">${t('sortCreated')}</option><option value="name">${t('sortName')}</option><option value="progress">${t('sortProgress')}</option></select>
       </div>
@@ -315,10 +320,10 @@
 
   /* ---------- open lab bench (no lesson needed) ---------- */
   function renderBench(v) {
-    const groups = [['physics', Object.values(NL.LABS).filter((l) => l.subject === 'physics')], ['chemistry', Object.values(NL.LABS).filter((l) => l.subject === 'chemistry')]];
+    const groups = [['physics', Object.values(NL.LABS).filter((l) => l.subject === 'physics')]];
     v.innerHTML = `<div class="page-head"><div><h1>${t('benchTitle')}</h1><p class="lead-sm">${t('benchLead')}</p></div></div>
       <div class="bench-pick">${groups.map(([s, labs]) => `<div><h3>${NL.subjectName(s)}</h3><div class="chips">${labs.map((l) => `<button class="chip" data-lab="${l.id}">${esc(tt(l.title))}</button>`).join('')}</div></div>`).join('')}
-        <div><h3>${t('benchMath')}</h3><div class="chips"><button class="chip" data-lab="grapher">${t('grTitle')}</button><button class="chip" data-lab="pad">${t('padTitle')}</button><button class="chip" data-lab="board">${t('tab_board')}</button></div></div></div>
+        <div><h3>${t('benchTools')}</h3><div class="chips"><button class="chip" data-lab="grapher">${t('grTitle')}</button><button class="chip" data-lab="pad">${t('padTitle')}</button><button class="chip" data-lab="board">${t('tab_board')}</button></div></div></div>
       <div id="bench-stage"></div>`;
     let stop = null;
     const open = (id) => {
@@ -370,7 +375,7 @@
         <aside class="intake-side">
           <div class="panel">
             <label class="ctl"><span>${t('lessonTitle')}</span><input id="in-title" value="${esc(intake.title)}" placeholder="${t('lessonTitlePh')}"></label>
-            <label class="ctl"><span>${t('subject')}</span><select id="in-subj"><option value="">${t('autoDetect')}</option>${NL.SUBJECTS.map((s) => `<option value="${s}" ${intake.subject === s ? 'selected' : ''}>${NL.subjectName(s)}</option>`).join('')}</select></label>
+            <label class="ctl" hidden><span>${t('subject')}</span><select id="in-subj"><option value="">${t('autoDetect')}</option>${NL.SUBJECTS.map((s) => `<option value="${s}" ${intake.subject === s ? 'selected' : ''}>${NL.subjectName(s)}</option>`).join('')}</select></label>
             <label class="ctl"><span>${t('unit')}</span><input id="in-unit" value="${esc(intake.unit)}" placeholder="${t('unitPh')}"></label>
             <div class="go-area" id="go-area"></div>
           </div>
@@ -625,7 +630,7 @@ places/events: only for history/geography (or lessons naming real places/dates);
       const lesson = {
         ...(prev || {}), id, status: 'ready', version: 2,
         title: intake.title.trim() || analysis.title || (NL.lang === 'ar' ? 'درس بلا عنوان' : 'Untitled lesson'),
-        subject: intake.subject || analysis.subject, unit: intake.unit.trim() || analysis.unit || '', chapter: analysis.chapter || '',
+        subject: 'physics', unit: intake.unit.trim() || analysis.unit || '', chapter: analysis.chapter || '',
         createdAt: prev?.createdAt || Date.now(), pageCount: P.length,
         cover: P.find((p) => p.thumb)?.thumb || null,
         readNotes: { weak: P.map((p, i) => (p.status === 'weak' ? { page: i + 1, issue: p.issue } : null)).filter(Boolean), textLayerOnly: intake.textLayerOnly },
@@ -648,7 +653,7 @@ places/events: only for history/geography (or lessons naming real places/dates);
   async function createDraft() {
     const title = $('#in-title').value.trim();
     if (!title) { $('#in-title').focus(); $('#in-title').classList.add('shake'); setTimeout(() => $('#in-title')?.classList.remove('shake'), 500); return; }
-    const l = { id: uid(), title, subject: $('#in-subj').value || 'other', unit: $('#in-unit').value.trim(), createdAt: Date.now(), status: 'draft', pageCount: 0, stats: { activity: 0 } };
+    const l = { id: uid(), title, subject: 'physics', unit: $('#in-unit').value.trim(), createdAt: Date.now(), status: 'draft', pageCount: 0, stats: { activity: 0 } };
     await store.putLesson(l); app.lessons.push(l);
     NL.go('lesson', { id: l.id });
   }

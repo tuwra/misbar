@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Readex+Pro:wght@400;500;600;700&display=swap">
+<style id="appcss"></style>
+<style>
+html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:#090E1A}
+#host{position:absolute;inset:0}
+#host .s3d{display:block;height:720px}
+#host .s3d-tabs,#host .s3d-narr,#host .s3d-ctl,#host .s3d-hint{display:none!important}
+#host .s3d-stage{height:720px!important;border-radius:0;border:0}
+#host .s3d-cards{bottom:128px!important}
+#cap{z-index:20;position:absolute;left:80px;right:80px;bottom:34px;text-align:center;font:600 27px/1.55 "Readex Pro","IBM Plex Sans Arabic",sans-serif;color:#fff;background:rgba(9,14,26,.82);border:1px solid #31405F;border-radius:14px;padding:12px 22px;transition:opacity .35s}
+#cap:empty{opacity:0}
+#cap bdi{white-space:nowrap;font-family:"JetBrains Mono",monospace;color:#5CC8FF;font-weight:600;font-size:25px}
+.card{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(ellipse at 50% 40%,#16223d,#090E1A 70%);color:#E8EDF7;font-family:"Readex Pro",sans-serif;opacity:0;transition:opacity .6s;z-index:30;text-align:center}
+.card.on{opacity:1}
+.card h1{font-size:76px;margin:0;color:#F2B544}
+.card h2{font-size:30px;margin:0;color:#C3CCDD;font-weight:500}
+.card .tag{font:600 18px "JetBrains Mono",monospace;color:#5CC8FF;letter-spacing:.12em}
+.card .names{font-size:38px;font-weight:600;color:#fff}
+.card .names span{color:#F2B544;margin:0 14px}
+.card p{font-size:24px;color:#8B97B0;margin:0}
+.orb{width:120px;height:120px;border-radius:50%;border:3px solid #5CC8FF;position:relative}
+.orb::after{content:"";position:absolute;inset:38px;border-radius:50%;background:#F2B544}
+</style></head><body>
+<div id="host"></div>
+<div class="card" id="c-intro"><div class="orb"></div><span class="tag">PHYSICS 2 · 4-2</span><h1>الآلات</h1><h2>الفائدة الميكانيكية · الكفاءة · الآلات البسيطة والمركّبة</h2></div>
+<div class="card" id="c-recap"><span class="tag">REMEMBER</span><h1 style="font-size:52px">الآلة تسهّل العمل</h1><h2>لكنها لا تعطيك طاقة مجانية: W₀ ≤ Wᵢ</h2><p>جرّب بنفسك في مختبر المنصة</p></div>
+<div class="card" id="c-credits"><span class="tag">ACTION RESEARCH</span><h2>تنفيذ وإعداد · دراسة بحث إجرائي</h2><div class="names">أ. مشعل الزهراني<span>|</span>رائد العتيبي<span>|</span>فيصل الشهراني</div><p>منصة مِسبار · فيزياء 2</p></div>
+<div id="cap"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="core.js"></script><script src="labs.js"></script><script src="scene3d.js"></script>
+<script>
+(async () => {
+  const html = await (await fetch('index.html')).text();
+  document.getElementById('appcss').textContent = html.split('<style>')[1].split('</style>')[0];
+  const TL = await (await fetch('film-timeline.json')).json();
+  const host = document.getElementById('host');
+  await NL.mount3D(host, {});
+  const pb = host.querySelector('[data-n="play"]'); pb.click(); // stop autoplay
+  const cap = document.getElementById('cap'), cards = document.querySelectorAll('.card');
+  let sc = -1;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  window.filmReady = true;
+  window.filmPlay = async () => {
+    window.filmT0 = performance.now();
+    for (const s of TL) {
+      cards.forEach((c) => c.classList.toggle('on', c.id === 'c-' + s.card));
+      if (s.sc != null) {
+        if (s.sc !== sc) { host.querySelector(`[data-sc="${s.sc}"]`).click(); sc = s.sc; }
+        host.querySelector(`[data-dot="${s.st}"]`)?.click();
+      }
+      cap.innerHTML = s.card ? '' : NL.esc(s.cap).replace(/`([^`]+)`/g, '<bdi dir="ltr">$1</bdi>');
+      await sleep(s.dur * 1000);
+    }
+    window.filmDone = true;
+  };
+})();
+</script></body></html>

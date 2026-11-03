@@ -1,7 +1,7 @@
 // Local server: serves public/ and the AI endpoint. Run: npm start (reads .env if present).
 import http from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import { createReadStream, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,7 +15,7 @@ if (existsSync(path.join(here, '.env'))) {
 const { default: aiHandler } = await import('./lib/ai-handler.mjs');
 const { default: loginHandler } = await import('./lib/auth.mjs');
 const root = path.join(here, 'public');
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.mp4': 'video/mp4', '.vtt': 'text/vtt; charset=utf-8' };
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -23,6 +23,20 @@ http.createServer(async (req, res) => {
   if (url.pathname === '/api/login') return loginHandler(req, res);
   let file = path.normalize(path.join(root, decodeURIComponent(url.pathname)));
   if (!file.startsWith(root)) { res.statusCode = 403; return res.end(); }
-  try { if ((await stat(file)).isDirectory()) file = path.join(file, 'index.html'); res.setHeader('Content-Type', TYPES[path.extname(file)] || 'application/octet-stream'); res.end(await readFile(file)); }
-  catch { res.statusCode = 404; res.end('Not found'); }
+  try {
+    let st = await stat(file);
+    if (st.isDirectory()) { file = path.join(file, 'index.html'); st = await stat(file); }
+    res.setHeader('Content-Type', TYPES[path.extname(file)] || 'application/octet-stream');
+    res.setHeader('Accept-Ranges', 'bytes');
+    // video players (Safari above all) need byte ranges to play and seek
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (m && (m[1] || m[2])) {
+      const start = m[1] ? +m[1] : Math.max(0, st.size - +m[2]), end = m[1] && m[2] ? Math.min(+m[2], st.size - 1) : st.size - 1;
+      if (start > end || start >= st.size) { res.statusCode = 416; res.setHeader('Content-Range', `bytes */${st.size}`); return res.end(); }
+      res.statusCode = 206; res.setHeader('Content-Range', `bytes ${start}-${end}/${st.size}`); res.setHeader('Content-Length', end - start + 1);
+      return createReadStream(file, { start, end }).pipe(res);
+    }
+    res.setHeader('Content-Length', st.size);
+    createReadStream(file).pipe(res);
+  } catch { res.statusCode = 404; res.end('Not found'); }
 }).listen(+process.env.PORT || 3000, () => console.log(`Misbar running at http://localhost:${+process.env.PORT || 3000}`));
