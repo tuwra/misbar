@@ -324,9 +324,16 @@
     async init() {
       try {
         const j = await (await fetch('api/login', { cache: 'no-store', headers: this.header() })).json();
-        this.required = !!j.required; this.user = j.user || null; this.role = j.role || (this.required ? null : 'teacher');
+        this.required = !!j.required; this.guests = !!j.guests; this.user = j.user || null; this.role = j.role || (this.required ? null : 'teacher');
         if (!this.user) { this.token = ''; NL.lsSet('token', ''); }
       } catch { this.required = false; this.user = null; }
+    },
+    isGuest() { return /^guest-/.test(this.user || ''); },
+    async signInGuest() {
+      const r = await fetch('api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guest: NL.lsGet('guestId', true) }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw j.error || { code: 'network' };
+      this.token = j.token; this.user = j.user; this.role = 'student'; NL.lsSet('token', j.token); NL.lsSet('guestId', j.user);
     },
     async signIn(username, password) {
       const r = await fetch('api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });

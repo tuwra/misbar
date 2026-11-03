@@ -23,6 +23,8 @@
     imagesOff: ['قراءة الصور غير متاحة في هذا العرض. يمكنك رفع PDF نصي أو Word أو لصق النص.', 'Image reading is not available in this view. Upload a text PDF or Word file, or paste the text.'],
     statusReady: ['جاهز للتحليل', 'Ready to analyze'],
     readyMade: ['درس جاهز', 'Ready-made'],
+    or: ['أو', 'or'], guestGo: ['ادخل كضيف', 'Continue as a guest'], guestName: ['ضيف', 'Guest'],
+    guestNote: ['للطلاب: بدون اسم مستخدم ولا كلمة مرور. يُحفظ تقدّمك في هذا الجهاز.', 'For students: no username or password. Your progress is saved on this device.'],
     homeStyles: ['تعلّم بالطريقة التي تناسبك', 'Learn the way that suits you'],
     hs_v: ['فيديو مشروح ومجسمات ثلاثية الأبعاد تتحرك أمامك، وخرائط مفاهيم ملوّنة.', 'Narrated video, moving 3D models and colourful concept maps.'],
     hs_a: ['كل جزء من الدرس يُقرأ لك بصوت مسموع مع تظليل النص، وفيديو بتعليق صوتي.', 'Every part of the lesson read aloud with highlighting, plus a narrated video.'],
@@ -49,7 +51,7 @@
     const ban = $('#ai-banner');
     if (ban) { const show = ai.checked && !ai.ready; ban.hidden = !show; if (show) ban.innerHTML = ai.offHtml(); }
     const who = $('#who');
-    if (who) { who.hidden = !NL.auth.user; who.querySelector('span').textContent = NL.auth.user || ''; who.title = t('signOut'); }
+    if (who) { who.hidden = !NL.auth.user; who.querySelector('span').textContent = NL.auth.isGuest() ? t('guestName') : NL.auth.user || ''; who.title = t('signOut'); }
     $$('.nav a').forEach((a) => a.classList.toggle('on', a.dataset.r === app.route || (a.dataset.r === 'library' && app.route === 'lesson')));
   };
 
@@ -117,12 +119,19 @@
         <label class="ctl"><span>${t('password')}<button type="button" class="link" id="pw-toggle">${t('showPw')}</button></span><input id="login-pass" name="password" type="password" autocomplete="current-password" dir="ltr" required></label>
         <p class="login-err bad" id="login-err" role="alert" hidden></p>
         <button class="btn big" type="submit" id="login-go">${t('signIn')}</button>
+        ${NL.auth.guests ? `<div class="login-or"><span>${t('or')}</span></div><button class="btn big ghost" type="button" id="login-guest">${t('guestGo')}</button><p class="fine">${t('guestNote')}</p>` : ''}
         <p class="fine">${t('loginNote')}</p>
       </form></section>`;
     app.cleanup.push(heroField($('.hero-field', v)));
     const pass = $('#login-pass', v), err = $('#login-err', v), go = $('#login-go', v);
     $('#pw-toggle', v).onclick = (e) => { const show = pass.type === 'password'; pass.type = show ? 'text' : 'password'; e.target.textContent = t(show ? 'hidePw' : 'showPw'); };
     $('#login-user', v).focus();
+    const enter = async () => { await NL.store.init(); await NL.loadLessons(); NL.ai.init(); NL.go('home'); };
+    $('#login-guest', v)?.addEventListener('click', async (e) => {
+      err.hidden = true; e.target.disabled = true;
+      try { await NL.auth.signInGuest(); await enter(); }
+      catch { err.hidden = false; err.textContent = t('loginErr_network'); e.target.disabled = false; }
+    });
     $('#login-form', v).onsubmit = async (e) => {
       e.preventDefault(); err.hidden = true; go.disabled = true; go.textContent = t('signingIn');
       try {

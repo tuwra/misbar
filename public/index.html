@@ -868,6 +868,8 @@ body.is-login .credits { position: relative; z-index: 2; }
   .so-zones { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 480px) { .so-zones { grid-template-columns: 1fr; } }
+.login-or { display: flex; align-items: center; gap: 10px; color: var(--mute); font-size: .85rem; }
+.login-or::before, .login-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 </style>
 </head>
 <body>
@@ -945,6 +947,8 @@ body.is-login .credits { position: relative; z-index: 2; }
   document.querySelector('#who').onclick = () => NL.auth.signOut();
   (async () => {
     await NL.auth.init();
+    // the teacher can share …/#guest so students skip the sign-in page
+    if (NL.auth.required && !NL.auth.user && location.hash === '#guest' && NL.auth.guests) { try { await NL.auth.signInGuest(); history.replaceState(null, '', location.pathname); } catch {} }
     if (NL.auth.required && !NL.auth.user) { NL.go('login'); return; }
     const ready = NL.store.init();
     NL.ai.init();
