@@ -14,13 +14,15 @@ if (existsSync(path.join(here, '.env'))) {
 }
 const { default: aiHandler } = await import('./lib/ai-handler.mjs');
 const { default: loginHandler } = await import('./lib/auth.mjs');
+const { default: ttsHandler } = await import('./lib/tts.mjs');
 const root = path.join(here, 'public');
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.mp4': 'video/mp4', '.vtt': 'text/vtt; charset=utf-8' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.mp4': 'video/mp4', '.m4a': 'audio/mp4', '.vtt': 'text/vtt; charset=utf-8' };
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/api/ai') return aiHandler(req, res);
   if (url.pathname === '/api/login') return loginHandler(req, res);
+  if (url.pathname === '/api/tts') return ttsHandler(req, res);
   let file = path.normalize(path.join(root, decodeURIComponent(url.pathname)));
   if (!file.startsWith(root)) { res.statusCode = 403; return res.end(); }
   try {

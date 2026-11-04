@@ -3,7 +3,7 @@
   const { $, $$, esc, t, uid, ai } = NL;
   NL.addT({
     tab_styles: ['أنماط التعلم', 'Learning styles'], tab_video: ['فيديو الدرس', 'Lesson video'], tab_listen: ['استمع للدرس', 'Listen'], tab_sort: ['نشاط السحب والإفلات', 'Drag and sort'],
-    listenThis: ['استمع', 'Listen'], listenStop: ['أوقف القراءة', 'Stop reading'],
+    listenThis: ['استمع', 'Listen'], voiceWait: ['جارٍ تجهيز الصوت…', 'Preparing the voice…'], voiceFallback: ['الصوت الطبيعي غير متاح الآن، تُستخدم قراءة الجهاز.', 'The natural voice is not available right now; using the device voice.'], listenStop: ['أوقف القراءة', 'Stop reading'],
     noVoice: ['لا يوجد صوت عربي مثبّت في هذا الجهاز أو المتصفح. جرّب Chrome أو Safari، أو شاهد فيديو الدرس المسموع.', 'No voice for this language is installed on this device or browser. Try Chrome or Safari, or watch the narrated lesson video.'],
     // styles hub
     stLead: ['كل طالب يتعلم بطريقة مختلفة. اختر المدخل الذي يناسبك، أو اكتشف نمطك بالاستبانة القصيرة.', 'Everyone learns differently. Pick the way in that suits you, or discover your style with the short survey.'],
@@ -32,46 +32,95 @@
   });
 
   /* ---------- speech: the browser's own text-to-speech, no account needed ---------- */
-  const SAY_AR = [[/\\times|×/g, ' ضرب '], [/\\cdot/g, ' ضرب '], [/\\frac\{([^}]*)\}\{([^}]*)\}/g, ' $1 على $2 '], [/\bIMA\b/g, ' آي إم إيه '], [/\bMA\b/g, ' إم إيه '], [/F_\{?r\}?|Fᵣ/g, ' إف آر '], [/F_\{?e\}?|Fₑ/g, ' إف إي '],
-    [/d_\{?r\}?|dᵣ/g, ' دي آر '], [/d_\{?e\}?|dₑ/g, ' دي إي '], [/r_\{?r\}?|rᵣ/g, ' آر آر '], [/r_\{?e\}?|rₑ/g, ' آر إي '], [/W_\{?o\}?|W₀/g, ' الشغل الناتج '], [/W_\{?i\}?|Wᵢ/g, ' الشغل المبذول '], [/\\%|%/g, ' بالمئة '],
-    [/=/g, ' يساوي '], [/\//g, ' على '], [/\+/g, ' زائد '], [/\bmg\b/g, ' إم جي '], [/\\pi/g, ' باي '], [/\\[a-z]+/g, ' '], [/[{}_^\\]/g, ' ']];
+  // LaTeX → spoken Arabic, applied in order inside $…$ only
+  const NAME = { F: 'إف', d: 'دي', r: 'آر', R: 'آر', v: 'في', W: 'دبليو', N: 'إن', E: 'إي', e: 'إي', Q: 'كيو', L: 'إل', h: 'إتش', p: 'بي', f: 'إف', i: 'آي', o: 'أو', g: 'جي', m: 'إم', t: 'تي', a: 'إيه', P: 'بي', K: 'كيه', x: 'إكس', y: 'واي' };
+  const say = (c) => NAME[c] || c;
+  const SAY_AR = [
+    [/\\text\{([^}]*)\}/g, ' $1 '], [/\\[dt]?frac\{([^}]*)\}\{([^}]*)\}/g, ' $1 على $2 '],
+    [/\\leq?|≤/g, ' أصغر من أو يساوي '], [/\\geq?|≥/g, ' أكبر من أو يساوي '], [/\\approx|≈/g, ' يساوي تقريبًا '], [/\\neq|≠/g, ' لا يساوي '], [/</g, ' أصغر من '], [/>/g, ' أكبر من '],
+    [/\\times|×|\\cdot/g, ' ضرب '], [/\\Delta|Δ/g, ' دلتا '], [/\\theta|θ/g, ' ثيتا '], [/\\mu|μ/g, ' ميو '], [/\\pi|π/g, ' باي '], [/\\sin/g, ' جا '], [/\\cos/g, ' جتا '], [/\\ell/g, ' إل '], [/\\%|%/g, ' بالمئة '],
+    [/IMA_?\{?(\d?)\}?/g, ' آي إم إيه $1 '], [/MA_?\{?(\d?)\}?/g, ' إم إيه $1 '],
+    [/Fᵣ/g, ' إف آر '], [/Fₑ/g, ' إف إي '], [/dᵣ/g, ' دي آر '], [/dₑ/g, ' دي إي '], [/W₀/g, ' دبليو أو '], [/Wᵢ/g, ' دبليو آي '],
+    [/([A-Za-z])_\{?([a-z])(\d?)\}?/g, (_, x, y, n) => ` ${say(x)} ${say(y)} ${n} `], [/\b([A-Za-z])\b/g, (_, x) => ` ${say(x)} `],
+    [/=/g, ' يساوي '], [/\//g, ' على '], [/\+/g, ' زائد '], [/ - |−/g, ' ناقص '], [/\\[a-zA-Z]+/g, ' '], [/[{}_^\\()]/g, ' ']];
   const spoken = (md) => {
     let s = String(md || '').replace(/:::extra|:::/g, '').replace(/\[p\.\s*([\d–\-, ]+)\]/g, NL.lang === 'ar' ? ' صفحة $1 ' : ' page $1 ');
     s = s.replace(/\$\$?([^$]+)\$\$?/g, (_, tex) => NL.lang === 'ar' ? SAY_AR.reduce((x, [re, to]) => x.replace(re, to), tex) : tex.replace(/[{}_^\\]/g, ' '));
     return s.replace(/[*#>`|]/g, ' ').replace(/\s+/g, ' ').trim();
   };
+  // the natural voice: a Gemini voice (Orus) from the server, or a ready recording in tts/<sha1>.m4a; the browser's own voice is the fallback
+  const audio = new Audio(), made = new Map();
+  const sha1 = async (s) => [...new Uint8Array(await crypto.subtle.digest('SHA-1', new TextEncoder().encode(s)))].map((b) => b.toString(16).padStart(2, '0')).join('');
+  async function natural(text) {
+    const id = await sha1(text);
+    if (made.has(id)) return made.get(id);
+    const job = (async () => {
+      const ready = await fetch('tts/' + id + '.m4a', { method: 'HEAD' }).catch(() => null);
+      if (ready?.ok) return 'tts/' + id + '.m4a';
+      const r = await fetch('api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...NL.auth.header() }, body: JSON.stringify({ text, lang: NL.lang }) });
+      if (!r.ok) throw new Error('tts ' + r.status);
+      return URL.createObjectURL(await r.blob());
+    })();
+    made.set(id, job); job.catch(() => made.delete(id));
+    return job;
+  }
   const S = (NL.speech = {
-    ok: 'speechSynthesis' in window, rate: +NL.lsGet('ttsRate', 1) || 1, btn: null, run: 0,
+    ok: 'speechSynthesis' in window, rate: +NL.lsGet('ttsRate', 1) || 1, btn: null, run: 0, audio,
+    natural, spoken, text: (parts) => parts.map(spoken).filter(Boolean).join('\n'),
     voice() {
       if (!S.ok) return null;
       const vs = speechSynthesis.getVoices(), want = NL.lang === 'ar' ? /^ar/i : /^en/i;
       return vs.filter((v) => want.test(v.lang)).sort((a, b) => (/ar-SA/i.test(b.lang) - /ar-SA/i.test(a.lang)) || (b.localService - a.localService))[0] || null;
     },
-    // speaks the parts in order; onPart(i) fires as each one starts
-    play(parts, { onPart, onEnd } = {}) {
-      S.stop(); const run = ++S.run, v = S.voice();
-      if (!S.ok || !v) { NL.toast(t('noVoice'), 'warn'); onEnd?.(); return false; }
-      const next = (i) => {
+    // speaks the parts in order; onPart(i) fires as each one starts, onWait(true|false) while the voice is being prepared
+    play(parts, { onPart, onEnd, onWait } = {}) {
+      S.stop(); const run = ++S.run;
+      const said = parts.map(spoken), total = said.reduce((n, p) => n + p.length + 1, 0) || 1;
+      onWait?.(true);
+      natural(said.filter(Boolean).join('\n')).then((src) => {
         if (run !== S.run) return;
-        if (i >= parts.length) { S.run++; onEnd?.(); return; }
-        const u = new SpeechSynthesisUtterance(spoken(parts[i])); u.voice = v; u.lang = v.lang; u.rate = S.rate;
-        u.onstart = () => run === S.run && onPart?.(i);
-        u.onend = () => next(i + 1); u.onerror = (e) => { if (e.error !== 'interrupted' && e.error !== 'canceled') next(i + 1); };
-        speechSynthesis.speak(u);
-      };
-      next(0); return true;
+        onWait?.(false);
+        audio.src = src; audio.playbackRate = S.rate;
+        // the recording is one piece, so the highlighted part follows its share of the text
+        const marks = []; said.reduce((n, p) => (marks.push(n / total), n + p.length + 1), 0);
+        let at = -1;
+        audio.ontimeupdate = () => { if (run !== S.run || !audio.duration) return; const f = audio.currentTime / audio.duration; let i = 0; while (i + 1 < marks.length && marks[i + 1] <= f) i++; if (i !== at) { at = i; onPart?.(i); } };
+        audio.onended = () => { if (run === S.run) { S.run++; onEnd?.(); } };
+        return audio.play();
+      }).catch((e) => {
+        if (run !== S.run) return;
+        console.warn('natural voice unavailable', e);
+        onWait?.(false);
+        if (!device(parts, run, { onPart, onEnd })) onEnd?.();
+      });
+      return true;
     },
-    stop() { S.run++; if (S.ok) speechSynthesis.cancel(); if (S.btn) { S.btn.classList.remove('speaking'); S.btn.textContent = S.btn.dataset.label || t('listenThis'); S.btn = null; } },
+    stop() { S.run++; audio.pause(); if (S.ok) speechSynthesis.cancel(); if (S.btn) { S.btn.classList.remove('speaking'); S.btn.textContent = S.btn.dataset.label || t('listenThis'); S.btn = null; } },
     // a single listen button that turns into stop while reading
     toggle(btn, parts) {
       if (S.btn === btn) return S.stop();
       S.stop(); btn.dataset.label ||= btn.textContent;
-      if (!S.play(parts, { onEnd: () => S.btn === btn && S.stop() })) return;
-      S.btn = btn; btn.classList.add('speaking'); btn.textContent = t('listenStop');
+      S.btn = btn; btn.classList.add('speaking'); btn.textContent = t('voiceWait');
+      S.play(parts, { onEnd: () => S.btn === btn && S.stop(), onWait: (w) => { if (S.btn === btn) btn.textContent = t(w ? 'voiceWait' : 'listenStop'); } });
       W().stat?.((st) => { st.labsUsed ||= {}; st.labsUsed.listen ||= Date.now(); });
     },
     fromExplain(s, d) { return [s.title, d.intro, ...(d.points || []).flatMap((p) => [p.title, p.body]), ...(d.realLife || [])].filter(Boolean); },
   });
+  // the browser's own voice, used only when the natural voice cannot be reached
+  function device(parts, run, { onPart, onEnd }) {
+    const v = S.voice();
+    if (!S.ok || !v) { NL.toast(t('noVoice'), 'warn'); return false; }
+    NL.toast(t('voiceFallback'), 'warn');
+    const next = (i) => {
+      if (run !== S.run) return;
+      if (i >= parts.length) { S.run++; onEnd?.(); return; }
+      const u = new SpeechSynthesisUtterance(spoken(parts[i])); u.voice = v; u.lang = v.lang; u.rate = S.rate;
+      u.onstart = () => run === S.run && onPart?.(i);
+      u.onend = () => next(i + 1); u.onerror = (e) => { if (e.error !== 'interrupted' && e.error !== 'canceled') next(i + 1); };
+      speechSynthesis.speak(u);
+    };
+    next(0); return true;
+  }
   if (S.ok) speechSynthesis.getVoices(); // voices load lazily in Chrome
   const W = () => NL.ws;
 
@@ -186,7 +235,6 @@
     tracks.push({ title: t('lsSummary'), parts: [t('lsSummary'), ...(sum?.length ? sum : [a.summary])] });
     let cur = -1, playing = false, all = false;
     body.innerHTML = `${w.head(t('tab_listen'), t('lsLead'), `<div class="row gap"><span class="fine">${t('lsSpeed')}</span><div class="seg">${[0.8, 1, 1.2].map((r) => `<button role="radio" data-rate="${r}" aria-checked="${r === S.rate}">${r}×</button>`).join('')}</div></div>`)}
-      ${S.ok && !S.voice() ? `<div class="notice warn"><p>${t('noVoice')}</p></div>` : ''}
       <div class="ls-layout"><ol class="ls-list">${tracks.map((tr, i) => `<li><button data-tr="${i}"><span class="lmap-n">${i + 1}</span><span>${esc(tr.title)}</span></button></li>`).join('')}</ol>
         <article class="ls-read panel"><div class="row gap wrap ls-ctl"><button class="btn" id="ls-play">${t('lsAll')}</button><button class="btn ghost" id="ls-stop" hidden>${t('lsPause')}</button></div><div id="ls-text" class="prose"></div></article></div>`;
     const text = $('#ls-text', body), playB = $('#ls-play', body), stopB = $('#ls-stop', body);
@@ -197,16 +245,18 @@
     const start = (i) => {
       showTrack(i); playing = true; stopB.hidden = false; playB.hidden = true;
       S.play(tracks[i].parts, {
+        onWait: (wt) => { stopB.textContent = t(wt ? 'voiceWait' : 'lsPause'); },
         onPart: (j) => { $$('[data-p]', text).forEach((p) => p.classList.toggle('reading', +p.dataset.p === j)); $(`[data-p="${j}"]`, text)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); },
         onEnd: () => { if (!playing) return; if (all && i + 1 < tracks.length) start(i + 1); else stop(); },
       }) || stop();
+      if (all && tracks[i + 1]) S.natural(S.text(tracks[i + 1].parts)).catch(() => {}); // get the next part ready while this one plays
       w.stat((st) => { st.labsUsed ||= {}; st.labsUsed.listen ||= Date.now(); });
     };
     const stop = () => { playing = false; all = false; S.stop(); stopB.hidden = true; playB.hidden = false; $$('[data-p]', text).forEach((p) => p.classList.remove('reading')); };
     $$('[data-tr]', body).forEach((b) => (b.onclick = () => { all = false; start(+b.dataset.tr); }));
     playB.onclick = () => { all = true; start(cur < 0 ? 0 : cur); };
     stopB.onclick = stop;
-    $$('[data-rate]', body).forEach((b) => (b.onclick = () => { S.rate = +b.dataset.rate; NL.lsSet('ttsRate', S.rate); $$('[data-rate]', body).forEach((x) => x.setAttribute('aria-checked', x === b)); if (playing) start(cur); }));
+    $$('[data-rate]', body).forEach((b) => (b.onclick = () => { S.rate = +b.dataset.rate; NL.lsSet('ttsRate', S.rate); $$('[data-rate]', body).forEach((x) => x.setAttribute('aria-checked', x === b)); S.audio.playbackRate = S.rate; }));
     showTrack(0);
     w.stop.push(() => { playing = false; S.stop(); });
   };
