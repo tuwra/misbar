@@ -46,8 +46,11 @@
     st.querySelector('span').textContent = store.mode === 'pending' ? t('storagePending') : t('storageLocal');
     st.title = t('storageLocalHint');
     sa.className = 'pill ' + (ai.ready ? 'ok' : 'warn');
-    sa.querySelector('span').textContent = ai.ready ? t('aiOn') : t('aiOff');
-    sa.title = ai.ready ? '' : t(ai.needCode ? 'codeS' : ai.unreachable ? 'aiUnreachable' : 'aiNotConfigured');
+    const pick = ai.ready && ai.claude;
+    sa.querySelector('span').textContent = ai.ready ? t('aiOn') + (pick ? ' · ' + (ai.provider === 'claude' ? 'Claude' : 'Gemini') : '') : t('aiOff');
+    sa.title = pick ? t('provSwitch') : ai.ready ? '' : t(ai.needCode ? 'codeS' : ai.unreachable ? 'aiUnreachable' : 'aiNotConfigured');
+    sa.classList.toggle('prov', pick);
+    sa.onclick = pick ? () => { ai.provider = ai.provider === 'claude' ? 'gemini' : 'claude'; drawGo(); } : null;
     const ban = $('#ai-banner');
     if (ban) { const show = ai.checked && !ai.ready; ban.hidden = !show; if (show) ban.innerHTML = ai.offHtml(); }
     const who = $('#who');
@@ -510,12 +513,13 @@
     const P = intake.pages, pending = P.filter((p) => p.status === 'pending').length, weak = P.filter((p) => p.status === 'weak').length, ok = P.filter((p) => p.status === 'ok').length;
     if (intake.phase === 'reading') return;
     if (intake.phase === 'analyzing') return;
-    let html = '';
-    if (pending) html = `<button class="btn big" id="read-btn">${icon('eye')} ${t('readMaterial')}</button><p class="fine">${t('readingHint')}</p>`;
-    else if (ok || weak) html = `${weak ? `<p class="warn-text">${t('weakPagesWarn', { n: weak })}</p>` : ''}${intake.textLayerOnly ? `<p class="fine">${t('textLayerOnly')}</p>` : ''}
+    let html = ai.ready && ai.claude && (pending || ok || weak) ? `<div class="prov-pick"><span class="ctl-l">${t('provPick')}</span><div class="seg" role="radiogroup">${['gemini', 'claude'].map((p) => `<button type="button" role="radio" aria-checked="${ai.provider === p}" class="${ai.provider === p ? 'on' : ''}" data-prov="${p}">${p === 'claude' ? 'Claude' : 'Gemini'}</button>`).join('')}</div><p class="fine">${t('provHint')}</p></div>` : '';
+    if (pending) html += `<button class="btn big" id="read-btn">${icon('eye')} ${t('readMaterial')}</button><p class="fine">${t('readingHint')}</p>`;
+    else if (ok || weak) html += `${weak ? `<p class="warn-text">${t('weakPagesWarn', { n: weak })}</p>` : ''}${intake.textLayerOnly ? `<p class="fine">${t('textLayerOnly')}</p>` : ''}
       <button class="btn big glow" id="an-btn" ${ai.ready ? '' : 'disabled'}>${icon('spark')} ${t('analyzeStart')}</button>${ai.ready ? '' : ai.checked ? ai.offHtml() : `<p class="fine">${t('reconnecting')}</p>`}`;
     else html = `<p class="fine">${t('noMaterial')}</p>`;
     host.innerHTML = html;
+    $$('[data-prov]', host).forEach((b) => b.addEventListener('click', () => { ai.provider = b.dataset.prov; drawGo(); }));
     $('#read-btn', host)?.addEventListener('click', readAll);
     $('#an-btn', host)?.addEventListener('click', analyzeIntake);
   }

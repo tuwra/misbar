@@ -104,6 +104,11 @@
     fromBook: ['من الكتاب', 'From the book'], extra: ['إضافة توضيحية من خارج الكتاب', 'Extra explanation, not from the book'], page: ['ص', 'p.'],
     needsAI: ['هذه الأداة تحتاج الذكاء الاصطناعي، وهو غير متاح في هذا العرض.', 'This tool needs AI, which is not available in this view.'],
     generating: ['جارٍ الإنشاء…', 'Generating…'], stop: ['إيقاف', 'Stop'],
+    aiErr_claude_key: ['مفتاح Claude على الخادم غير صالح أو انتهى رصيده. بدّل إلى Gemini أو حدّث ANTHROPIC_API_KEY.', 'The server’s Claude key is invalid or out of credit. Switch to Gemini or update ANTHROPIC_API_KEY.'],
+    aiErr_claude_denied: ['Claude غير مفعّل لهذا الحساب.', 'Claude is not enabled for this account.'],
+    provPick: ['من يشرح لك؟', 'Who explains it?'],
+    provHint: ['يُستخدم اختيارك في القراءة والتحليل والشرح والمساعد حتى تغيّره.', 'Your choice is used for reading, analysis, explanations and the assistant until you change it.'],
+    provSwitch: ['اضغط للتبديل بين Gemini و Claude', 'Click to switch between Gemini and Claude'],
     aiErr_rate_limited: ['وصلت المنصة لحد الاستخدام المسموح مؤقتًا. انتظر دقيقة ثم أعد المحاولة، وإن تكرر فقد انتهت الحصة اليومية.', 'The platform hit its usage limit for now. Wait a minute and try again; if it repeats, the daily quota is used up.'],
     
     aiErr_invalid_json: ['جاء الرد بصيغة غير مكتملة. أعد المحاولة، وإن تكرر فقلّل حجم الطلب.', 'The reply came back incomplete. Try again; if it repeats, ask for less.'],
@@ -357,13 +362,16 @@
   const IMG_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
   const ai = (NL.ai = {
     ready: false, checked: false, configured: false, unreachable: false, needCode: false,
-    images: { maxCount: 3 }, tools: true,
+    images: { maxCount: 3 }, tools: true, claude: false,
+    // which model explains: 'gemini' for everyone; 'claude' only for accounts the server enables
+    get provider() { return this.claude && NL.lsGet('provider', 'gemini') === 'claude' ? 'claude' : 'gemini'; },
+    set provider(v) { NL.lsSet('provider', v === 'claude' ? 'claude' : 'gemini'); NL.emit('ai'); },
     async init() {
       this.checked = false; NL.emit('ai');
       try {
-        const r = await fetch('api/ai', { cache: 'no-store', headers: { 'X-Access-Code': NL.lsGet('code', '') } });
+        const r = await fetch('api/ai', { cache: 'no-store', headers: { 'X-Access-Code': NL.lsGet('code', ''), ...NL.auth.header() } });
         const j = await r.json();
-        this.unreachable = false; this.configured = !!j.configured;
+        this.unreachable = false; this.configured = !!j.configured; this.claude = !!j.claude;
         this.needCode = !!j.accessCode && !j.codeOk;
         if (this.needCode) NL.lsSet('code', '');
         this.ready = this.configured && !this.needCode;
@@ -381,7 +389,7 @@
         res = await fetch('api/ai', {
           method: 'POST', signal: opts.signal,
           headers: { 'Content-Type': 'application/json', 'X-Access-Code': NL.lsGet('code', ''), ...NL.auth.header() },
-          body: JSON.stringify({ messages, images, tier: opts.modelTier || 'default', json: !!opts.json, tools: !!opts.tools?.length }),
+          body: JSON.stringify({ messages, images, provider: this.provider === 'claude' ? 'claude' : undefined, tier: opts.modelTier || 'default', json: !!opts.json, tools: !!opts.tools?.length }),
         });
       } catch (e) { throw e?.name === 'AbortError' ? { code: 'cancelled' } : { code: 'network', message: e.message }; }
       if (!res.ok) {
@@ -389,6 +397,7 @@
         const err = j.error || { code: 'upstream', message: 'HTTP ' + res.status };
         if (err.code === 'login') NL.auth.signOut();
         if (err.code === 'access_code') { NL.lsSet('code', ''); this.needCode = true; this.ready = false; NL.emit('ai'); }
+        if (err.code === 'claude_denied') { this.claude = false; NL.emit('ai'); }
         if (err.code === 'not_configured') { this.configured = false; this.ready = false; NL.emit('ai'); }
         throw err;
       }

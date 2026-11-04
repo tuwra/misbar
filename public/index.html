@@ -190,6 +190,12 @@ input[type="range"] { width: 100%; accent-color: var(--accent); height: 22px; }
 .login-mark { width: 48px; height: 48px; }
 .login-card input { font-size: 1rem; padding: 11px 14px; }
 .login-err { font-size: .9rem; }
+#status-ai.prov { cursor: pointer; }
+.prov-pick { display: grid; gap: 6px; margin-bottom: 12px; }
+.prov-pick .ctl-l { font-weight: 600; font-size: .9rem; }
+.prov-pick .seg { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.prov-pick .seg button { flex: 1; border: 0; padding: 8px 10px; border-radius: 9px; background: transparent; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
+.prov-pick .seg button.on { background: var(--signal); color: var(--bg); }
 body.is-login .nav, body.is-login #status-store, body.is-login #status-ai, body.is-login #ai-banner { display: none !important; }
 /* ---------- home ---------- */
 .hero { position: relative; display: grid; gap: var(--s-6); padding-block: var(--s-6) var(--s-5); isolation: isolate; }
