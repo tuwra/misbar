@@ -447,8 +447,8 @@
   }
   async function addPdfPages(pdf, name, from, to) {
     for (let n = from; n <= to && intake.pages.length < NL.reader.MAX_PAGES; n++) {
-      const { canvas, text } = await NL.reader.renderPdfPage(pdf, n, 1400);
-      intake.pages.push({ id: uid(), kind: 'pdf', label: t('pageFrom', { f: name, n }), blob: await NL.reader.blob(canvas, 0.82), thumb: NL.reader.jpeg(canvas, 240, 0.6), image: NL.reader.jpeg(canvas, 900, 0.55), layer: text, text: '', status: 'pending' });
+      const { canvas, text } = await NL.reader.renderPdfPage(pdf, n, 2000);
+      intake.pages.push({ id: uid(), kind: 'pdf', label: t('pageFrom', { f: name, n }), blob: await NL.reader.blob(canvas, 0.9), thumb: NL.reader.jpeg(canvas, 240, 0.6), image: NL.reader.jpeg(canvas, 900, 0.55), layer: text, text: '', status: 'pending' });
       drawPages();
     }
   }
@@ -557,6 +557,21 @@
           else { p.status = 'weak'; p.issue = NL.lang === 'ar' ? 'لا يوجد نص قابل للاستخراج في هذه الصفحة (صورة). اكتب نصها يدويًا، أو ارفعها كصورة لتُقرأ بالذكاء الاصطناعي.' : 'No extractable text on this page (image). Type it in, or upload it as an image so the AI can read it.'; }
         });
       }
+      drawPages();
+    }
+    // a second, closer look: unclear pages are read again one at a time by the stronger setting, and the better reading is kept
+    const again = vision ? todo.filter((p) => p.status === 'weak' && p.blob && p.quality) : [];
+    for (let i = 0; i < again.length; i++) {
+      const p = again[i];
+      host.innerHTML = `<div class="reading"><div class="spinner"></div><p>${t('rereading', { i: i + 1, n: again.length })}</p><div class="meter"><span style="width:${(i + 1) / again.length * 100}%"></span></div></div>`;
+      try {
+        const [r] = await NL.transcribe([p.blob], todo.indexOf(p) + 1, p.layer ? p.layer.slice(0, 2500) : '', { closer: true });
+        const rank = { good: 3, partial: 2, unreadable: 1, blank: 0 };
+        if (r && (rank[r.quality] ?? 0) >= (rank[p.quality] ?? 0) && (r.text || '').length >= (p.text || '').length * 0.6) {
+          p.text = r.text || p.text; p.quality = r.quality; p.issue = r.issue || '';
+          p.status = r.quality === 'good' ? 'ok' : r.quality === 'blank' ? 'empty' : 'weak';
+        }
+      } catch (e) { if (e.code === 'cancelled' || e.code === 'rate_limited') break; }
       drawPages();
     }
     intake.phase = 'review'; drawPages();

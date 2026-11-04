@@ -74,6 +74,7 @@
     from: ['من', 'From'], to: ['إلى', 'To'], apply: ['تطبيق', 'Apply'],
     readMaterial: ['اقرأ المادة', 'Read the material'],
     reading: ['جارٍ قراءة الصفحة {i} من {n}…', 'Reading page {i} of {n}…'],
+    rereading: ['قراءة أدق للصفحات غير الواضحة: {i} من {n}…', 'Taking a closer look at unclear pages: {i} of {n}…'],
     readingHint: ['يقرأ مِسبار النصوص والمعادلات والرسومات من كل صفحة قبل أي تحليل.', 'Misbar reads text, equations and figures from every page before any analysis.'],
     pageOk: ['مقروءة', 'Read'], pageWeak: ['غير واضحة', 'Unclear'], pageEmpty: ['فارغة', 'Empty'], pagePending: ['بانتظار القراءة', 'Waiting'],
     unclearAsk: ['لم تُقرأ هذه الصفحة بوضوح. أعد رفعها بصورة أوضح بدل أن نخمّن محتواها، أو صحّح النص يدويًا.', 'This page could not be read clearly. Re-upload a clearer image instead of letting us guess, or fix the text by hand.'],
@@ -598,7 +599,7 @@
       const text = tc.items.map((i) => i.str + (i.hasEOL ? '\n' : ' ')).join('').normalize('NFKC').replace(/[ \t]+/g, ' ').trim();
       return { canvas: c, text };
     },
-    async imageToCanvas(file, max = 1600) {
+    async imageToCanvas(file, max = 2400) {
       const url = URL.createObjectURL(file);
       try {
         const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('image')); i.src = url; });
@@ -614,7 +615,7 @@
       c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
       return c.toDataURL('image/jpeg', q);
     },
-    blob(canvas, q = 0.8) { return new Promise((r) => canvas.toBlob(r, 'image/jpeg', q)); },
+    blob(canvas, q = 0.9) { return new Promise((r) => canvas.toBlob(r, 'image/jpeg', q)); },
     async docx(file) {
       const r = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
       return chunk(r.value);
@@ -641,16 +642,16 @@
   }
 
   // Vision transcription of page images; returns [{n, text, quality, figures, issue}]
-  NL.transcribe = async (blobs, startN, hints) => {
+  NL.transcribe = async (blobs, startN, hints, { closer } = {}) => {
     const prompt = `You are transcribing textbook pages for a study platform. You receive ${blobs.length} page image(s), numbered ${startN}..${startN + blobs.length - 1} in order.
 For each page, transcribe ALL readable text faithfully in its original language (do not translate, do not summarize, do not add anything).
 Write every equation in LaTeX between $...$ (inline) or $$...$$ (display). Keep units and symbols exactly.
 For each figure, diagram, graph or table, add a line: [FIGURE: short factual description of what it shows, including labels and values you can read].
-Mark any part you cannot read with [UNREADABLE]. Never guess unreadable words or numbers.
+${closer ? 'This page was hard to read on a first pass. Look closely: zoom into small print, footnotes, labels inside figures, subscripts and superscripts, and Arabic diacritics before deciding a part is unreadable.\n' : ''}Mark any part you cannot read with [UNREADABLE]. Never guess unreadable words or numbers.
 quality: "good" if the page is fully readable, "partial" if some parts are unreadable, "unreadable" if you cannot read most of it (blurry, cut, dark, rotated), "blank" if empty.
 ${hints ? 'A machine text layer is given below for reference only; it may be scrambled for Arabic. Trust the image.\n' + hints : ''}
 Reply with only JSON: {"pages":[{"n":${startN},"quality":"good","text":"...","issue":"why unclear, if not good"}]}`;
-    const r = await ai.json(prompt, { images: blobs, modelTier: 'default' });
+    const r = await ai.json(prompt, { images: blobs, modelTier: closer ? 'complex' : 'default' });
     return Array.isArray(r?.pages) ? r.pages : [];
   };
 
