@@ -518,7 +518,9 @@
     else if (ok || weak) html += `${weak ? `<p class="warn-text">${t('weakPagesWarn', { n: weak })}</p>` : ''}${intake.textLayerOnly ? `<p class="fine">${t('textLayerOnly')}</p>` : ''}
       <button class="btn big glow" id="an-btn" ${ai.ready ? '' : 'disabled'}>${icon('spark')} ${t('analyzeStart')}</button>${ai.ready ? '' : ai.checked ? ai.offHtml() : `<p class="fine">${t('reconnecting')}</p>`}`;
     else html = `<p class="fine">${t('noMaterial')}</p>`;
+    if (ai.claudeLink && !pending && (ok || weak)) html += `<div class="ask-claude"><button class="btn ghost" type="button" id="ask-claude">${icon('spark')} ${t('askClaude')}</button><p class="fine">${t('askClaudeHint')}</p></div>`;
     host.innerHTML = html;
+    $('#ask-claude', host)?.addEventListener('click', () => NL.askClaude($('#in-title')?.value || intake.title, intake.pages.filter((p) => p.text).map((p) => `[${p.label}]\n${p.text}`).join('\n\n')));
     $$('[data-prov]', host).forEach((b) => b.addEventListener('click', () => { ai.provider = b.dataset.prov; drawGo(); }));
     $('#read-btn', host)?.addEventListener('click', readAll);
     $('#an-btn', host)?.addEventListener('click', analyzeIntake);

@@ -105,6 +105,12 @@
     fromBook: ['من الكتاب', 'From the book'], extra: ['إضافة توضيحية من خارج الكتاب', 'Extra explanation, not from the book'], page: ['ص', 'p.'],
     needsAI: ['هذه الأداة تحتاج الذكاء الاصطناعي، وهو غير متاح في هذا العرض.', 'This tool needs AI, which is not available in this view.'],
     generating: ['جارٍ الإنشاء…', 'Generating…'], stop: ['إيقاف', 'Stop'],
+    askClaude: ['اشرح في Claude', 'Explain in Claude'],
+    askClaudeHint: ['ينسخ نص الدرس مع طلب الشرح ويفتح claude.ai بحسابك. الصق بـ ⌘V، ولك أن ترفق الملف نفسه.', 'Copies the lesson text with the request and opens claude.ai in your account. Paste with ⌘V; you can attach the file too.'],
+    claudeCopied: ['نُسخ نص الدرس مع طلب الشرح. الصقه في Claude بـ ⌘V.', 'Lesson text and request copied. Paste it into Claude with ⌘V.'],
+    claudeNoCopy: ['ما قدرت أنسخ النص تلقائيًا. انسخه من صفحة المادة والصقه في Claude.', 'Could not copy automatically. Copy the text from the material page and paste it into Claude.'],
+    claudeNoTitle: ['درس فيزياء', 'a physics lesson'],
+    claudePrompt: ['أنا أدرس «{t}» (فيزياء، المرحلة الثانوية، المنهج السعودي). اشرح لي هذا الدرس شرحًا واضحًا ومرتبًا بالعربية: ابدأ بالفكرة العامة، ثم اشرح كل قسم وكل قانون مع معنى رموزه ووحداته، وحل مثالًا خطوة بخطوة لكل قانون، واذكر الأخطاء الشائعة، واختم بملخص قصير وخمسة أسئلة أتحقق بها من فهمي مع إجاباتها. هذا نص الدرس:', 'I am studying "{t}" (high-school physics). Explain this lesson clearly in order: the big idea first, then each section and law with what its symbols and units mean, a worked step-by-step example for each law, common mistakes, and finish with a short summary and five check questions with answers. Here is the lesson text:'],
     aiErr_claude_key: ['مفتاح Claude على الخادم غير صالح أو انتهى رصيده. بدّل إلى Gemini أو حدّث ANTHROPIC_API_KEY.', 'The server’s Claude key is invalid or out of credit. Switch to Gemini or update ANTHROPIC_API_KEY.'],
     aiErr_claude_denied: ['Claude غير مفعّل لهذا الحساب.', 'Claude is not enabled for this account.'],
     provPick: ['من يشرح لك؟', 'Who explains it?'],
@@ -372,7 +378,7 @@
       try {
         const r = await fetch('api/ai', { cache: 'no-store', headers: { 'X-Access-Code': NL.lsGet('code', ''), ...NL.auth.header() } });
         const j = await r.json();
-        this.unreachable = false; this.configured = !!j.configured; this.claude = !!j.claude;
+        this.unreachable = false; this.configured = !!j.configured; this.claude = !!j.claude; this.claudeLink = !!j.claudeLink;
         this.needCode = !!j.accessCode && !j.codeOk;
         if (this.needCode) NL.lsSet('code', '');
         this.ready = this.configured && !this.needCode;
@@ -441,6 +447,14 @@
       return NL.t('aiErr_generic', { m: e?.message || c || e });
     },
   });
+
+  /* ---------- explain in Claude: copies the lesson with a ready request and opens claude.ai in the user's own account ---------- */
+  NL.askClaude = (title, text) => {
+    const prompt = NL.t('claudePrompt', { t: title || NL.t('claudeNoTitle') }) + '\n\n---\n' + String(text || '').trim().slice(0, 150000);
+    const done = () => NL.toast(NL.t('claudeCopied'), 'ok');
+    try { navigator.clipboard.writeText(prompt).then(done, () => NL.toast(NL.t('claudeNoCopy'), 'warn')); } catch { NL.toast(NL.t('claudeNoCopy'), 'warn'); }
+    window.open('https://claude.ai/new', '_blank', 'noopener');
+  };
 
   /* ---------- rich text + math ---------- */
   NL.tex = (src, display = false) => {

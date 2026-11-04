@@ -112,12 +112,20 @@
         <div class="ws-id"><p class="lcard-meta"><span class="subj-dot s-${esc(lesson.subject)}"></span>${esc(NL.subjectName(lesson.subject))}${lesson.unit ? ' · ' + esc(lesson.unit) : ''}</p>
           <h1 class="ws-title">${esc(lesson.title)}</h1>
           ${NL.auth.isTeacher() && lesson.analysis ? `<button class="btn sm present-btn" id="ws-present">${tabIcon('3d').replace('class="ic"', 'class="ic"')} ${t('present')}</button>` : ''}
+          ${NL.ai.claudeLink ? `<button class="btn sm ghost present-btn" id="ws-claude" title="${esc(t('askClaudeHint'))}">${t('askClaude')}</button>` : ''}
           <div class="ws-prog"><svg viewBox="0 0 40 40" class="ring"><circle cx="20" cy="20" r="16" class="ring-bg"/><circle cx="20" cy="20" r="16" class="ring-fg" pathLength="100" stroke-dasharray="0 100"/></svg><span><b id="ws-pct">0%</b> ${t('progress')}</span></div></div>
         <nav class="ws-tabs" aria-label="tools">${['learn', 'practice', 'review'].map((g) => `<p class="ws-grp">${t('grp_' + g)}</p>${W.tabs.filter((k) => TABS[k].g === g).map((k) => `<button class="ws-tab" data-tab="${k}">${tabIcon(k)}<span>${t('tab_' + k)}</span></button>`).join('')}`).join('')}</nav>
       </aside>
       <section class="ws-main"><div class="ws-body" id="ws-body"></div></section></div>`;
     $$('.ws-tab', v).forEach((b) => (b.onclick = () => W.open(b.dataset.tab)));
     $('#ws-present', v)?.addEventListener('click', () => NL.present(W.lesson, W.gen, { level: W.state.level || 'medium' }));
+    $('#ws-claude', v)?.addEventListener('click', () => {
+      // the pages' own text when there is one, otherwise the lesson as the platform understood it
+      const L = W.lesson, a = L.analysis || {}, pages = (L.pages || []).filter((p) => p.text?.trim());
+      const text = pages.length ? pages.map((p) => `[${p.label || ''}]\n${p.text}`).join('\n\n')
+        : [a.summary, ...(a.sections || []).map((x) => `## ${x.title}\n${x.summary || ''}`), ...(a.concepts || []).map((c) => `- ${c.name}: ${c.definition}`), ...(a.formulas || []).map((f) => `- ${f.name || ''}: ${f.latex || f.expr || ''}`)].filter(Boolean).join('\n\n');
+      NL.askClaude(L.title, text);
+    });
     W.updateProgress();
     W.open(W.tab, true);
     NL.app.cleanup.push(() => W.stop.forEach((f) => f?.()));

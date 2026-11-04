@@ -939,8 +939,8 @@ body.is-login .credits { position: relative; z-index: 2; }
   document.querySelectorAll('.nav a').forEach((a) => (a.onclick = (e) => { e.preventDefault(); NL.go(a.dataset.r); }));
   document.addEventListener('pointermove', (e) => { const c = e.target.closest?.('.choice'); if (c) { const b = c.getBoundingClientRect(); c.style.setProperty('--mx', ((e.clientX - b.left) / b.width * 100) + '%'); } });
   NL.on('storage', NL.renderShell);
-  let aiWasReady = false;
-  NL.on('ai', () => { NL.renderShell(); if (NL.ai.checked && NL.ai.ready !== aiWasReady) { aiWasReady = NL.ai.ready; const a = NL.app; if (a.route === 'new' || a.route === 'lesson') NL.go(a.route, a.route === 'lesson' ? { id: a.params.id, tab: NL.ws.tab } : a.params || {}); } });
+  let linkWas = false, aiWasReady = false;
+  NL.on('ai', () => { NL.renderShell(); if (NL.ai.checked && (NL.ai.ready !== aiWasReady || NL.ai.claudeLink !== linkWas)) { aiWasReady = NL.ai.ready; linkWas = NL.ai.claudeLink; const a = NL.app; if (a.route === 'new' || a.route === 'lesson') NL.go(a.route, a.route === 'lesson' ? { id: a.params.id, tab: NL.ws.tab } : a.params || {}); } });
   document.addEventListener('click', async (e) => {
     if (e.target.closest('[data-ai-retry]')) { e.preventDefault(); await NL.ai.init(); }
   });
