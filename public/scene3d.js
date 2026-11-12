@@ -355,6 +355,176 @@
     ],
   });
 
+  /* ---------- energy scenes (lesson 5-1: forms of energy) ---------- */
+  // live energy bars standing beside the scene: each bar grows up (or down, for negative values) from a base line
+  function energyBars(g, x, base, defs) {
+    const grp = new THREE.Group(); grp.position.set(x, base, 0); g.add(grp);
+    const line = box(defs.length * 0.55 + 0.3, 0.02, 0.5, mat(0x8b97b0)); line.position.set((defs.length - 1) * 0.275, 0, 0); grp.add(line);
+    const bars = defs.map(([name, color, cls], i) => {
+      const b = box(0.36, 1, 0.36, mat(color, { e: color, ei: 0.35 })); b.position.x = i * 0.55; grp.add(b);
+      const lb = label('', cls + ' sm'); grp.add(lb);
+      const nm = label(name, cls + ' sm'); nm.position.set(i * 0.55, -0.22, 0.3); grp.add(nm);
+      return { b, lb };
+    });
+    grp.set = (vals, scale) => vals.forEach((v, i) => {
+      const h = Math.max(0.004, Math.abs(v) * scale), { b, lb } = bars[i];
+      b.scale.y = h; b.position.y = v >= 0 ? h / 2 : -h / 2;
+      lb.position.set(i * 0.55, v >= 0 ? h + 0.18 : -h - 0.42, 0.3); lb.set(`${fmt(v, 3)} J`);
+    });
+    return grp;
+  }
+
+  SCENES.push({
+    id: 'throw', title: ['كرة تُقذف إلى أعلى', 'A ball thrown up'], sub: ['الطاقة الحركية وطاقة الوضع الجاذبية · الشكل 6-5', 'Kinetic and gravitational potential energy · Figure 5-6'],
+    params: [
+      { k: 'v0', label: ['سرعة القذف', 'Launch speed'], min: 3, max: 9, step: 0.1, def: 7, unit: 'm/s' },
+      { k: 'm', label: ['كتلة الكرة', 'Ball mass'], min: 0.2, max: 3, step: 0.1, def: 0.6, unit: 'kg' },
+      { k: 'ref', label: ['ارتفاع مستوى الإسناد فوق اليد', 'Reference level above the hand'], min: -1.2, max: 4, step: 0.05, def: 0, unit: 'm' },
+    ],
+    compute(p) { const hmax = p.v0 * p.v0 / (2 * G), KE0 = 0.5 * p.m * p.v0 * p.v0, PE0 = -p.m * G * p.ref, PEtop = p.m * G * (hmax - p.ref); return { hmax, KE0, PE0, PEtop, E: KE0 + PE0, T: 2 * p.v0 / G }; },
+    big: (r) => ({ k: 'h', v: fmt(r.hmax, 3) + ' m' }),
+    cards: (r, p) => [['k', ['KE عند القذف', 'KE at launch'], fmt(r.KE0, 3), 'J'], ['e', ['PE عند القذف', 'PE at launch'], fmt(r.PE0, 3), 'J'], ['e', ['PE عند القمة', 'PE at the top'], fmt(r.PEtop, 3), 'J'], ['g', ['المجموع KE + PE', 'Total KE + PE'], fmt(r.E, 3), 'J']],
+    chart: (p) => { const hmax = p.v0 * p.v0 / (2 * G), pts = [], pts2 = []; for (let h = 0; h <= hmax + 1e-9; h += hmax / 30) { pts.push([h, 0.5 * p.m * p.v0 * p.v0 - p.m * G * h]); pts2.push([h, p.m * G * (h - p.ref)]); } return { series: [{ pts }, { pts: pts2 }], xLabel: NL.lang === 'ar' ? 'الارتفاع فوق اليد (m)' : 'height above hand (m)', yLabel: 'J' }; },
+    build(S) {
+      const g = new THREE.Group(); S.root.add(g); g.position.x = -0.9;
+      const H0 = 1.1;
+      const body = cyl(0.22, 0.26, 1.0, mat(0x31405f)); body.position.set(-0.55, 0.5, 0); g.add(body);
+      const head = mesh(new THREE.SphereGeometry(0.2, 20, 16), mat(0xc9a27a)); head.position.set(-0.55, 1.22, 0); g.add(head);
+      const arm = rod(0.06, mat(0x31405f)); g.add(arm);
+      const hand = mesh(new THREE.SphereGeometry(0.08, 14, 10), mat(0xc9a27a)); hand.position.set(0, H0 - 0.12, 0); g.add(hand);
+      arm.between(V(-0.4, 0.95, 0), hand.position);
+      const ball = mesh(new THREE.SphereGeometry(0.13, 28, 20), mat(C.acc, { e: C.acc, ei: 0.25 })); g.add(ball);
+      const plane = mesh(new THREE.BoxGeometry(2.4, 0.01, 1.4), mat(C.sig, { op: 0.18, e: C.sig, ei: 0.4 }), false); g.add(plane);
+      const lRef = label(NL.lang === 'ar' ? 'مستوى الإسناد PE = 0' : 'Reference level PE = 0', 'e sm'); g.add(lRef);
+      const topMark = rod(0.008, mat(C.acc, { op: 0.6 })); g.add(topMark);
+      const lTop = label('', 'k sm'); g.add(lTop);
+      const lBall = label('', 'k sm'); g.add(lBall);
+      const bars = energyBars(g, 1.5, 0.9, [['KE', C.acc, 'k'], ['PE', C.sig, 'e'], [NL.lang === 'ar' ? 'المجموع' : 'Total', C.green, 'g']]);
+      return {
+        update(p, r, k) {
+          const t = ease(k) * r.T * 0.999, y = p.v0 * t - 0.5 * G * t * t, v = p.v0 - G * t;
+          ball.position.set(0, H0 + y, 0);
+          const KE = 0.5 * p.m * v * v, PE = p.m * G * (y - p.ref);
+          plane.position.set(0, H0 + p.ref, 0); lRef.position.set(-1.25, H0 + p.ref + 0.12, 0.6);
+          topMark.between(V(-0.5, H0 + r.hmax, 0), V(0.5, H0 + r.hmax, 0)); lTop.position.set(0.75, H0 + r.hmax, 0); lTop.set(`h = ${fmt(r.hmax, 3)} m`);
+          lBall.position.set(-0.45, H0 + y + 0.05, 0.2); lBall.set(`v = ${fmt(Math.abs(v), 2)} m/s`);
+          const scale = 1.8 / Math.max(r.KE0, Math.abs(r.PE0), Math.abs(r.PEtop), Math.abs(r.E), 1e-6);
+          bars.set([KE, PE, r.E], scale);
+        },
+      };
+    },
+    steps: [
+      { cam: [0.2, 2.6, 9.0], at: [0, 2.1, 0], text: (p, r) => NL.lang === 'ar' ? `النظام: **الكرة والأرض**. عند القذف تكون الطاقة حركية: $KE = \\frac{1}{2}mv^2$ = ${fmt(r.KE0)} J.` : `The system: **ball and Earth**. At launch the energy is kinetic: $KE = \\frac{1}{2}mv^2$ = ${fmt(r.KE0)} J.` },
+      { cam: [-2.0, 2.8, 7.6], at: [-0.5, 2.3, 0], text: () => NL.lang === 'ar' ? 'في أثناء الصعود تبذل الجاذبية شغلًا **سالبًا** $W_g = -mgh$، فتقل الطاقة الحركية وتزداد **طاقة الوضع الجاذبية** $PE = mgh$.' : 'Rising, gravity does **negative** work $W_g = -mgh$: kinetic energy falls and **gravitational potential energy** $PE = mgh$ grows.' },
+      { cam: [0.4, 3.6, 8.2], at: [0, 2.8, 0], text: (p, r) => NL.lang === 'ar' ? `عند أقصى ارتفاع (${fmt(r.hmax)} m) تتوقف الكرة لحظيًا: الطاقة كلها **طاقة وضع**. ثم تسقط فتعود حركية. **المجموع الأخضر ثابت.**` : `At the top (${fmt(r.hmax)} m) the ball stops for an instant: all of it is **potential energy**. Falling, it turns back into kinetic. **The green total stays constant.**` },
+      { cam: [2.4, 2.0, 7.6], at: [0, 1.7, 0], text: () => NL.lang === 'ar' ? '**مستوى الإسناد** هو حيث $PE = 0$، ونختاره بحرية. حرّك مستوى الإسناد إلى القمة: تصبح PE **سالبة** تحته ويتغير المجموع، لكن **التغيرات** في الطاقة لا تتغير.' : 'The **reference level** is where $PE = 0$, and we choose it freely. Move it to the top: PE becomes **negative** below it and the total shifts, but the **changes** in energy stay the same.' },
+    ],
+  });
+
+  SCENES.push({
+    id: 'bow', title: ['القوس والسهم', 'Bow and arrow'], sub: ['طاقة الوضع المرونية · الشكل 7-5', 'Elastic potential energy · Figure 5-7'],
+    params: [
+      { k: 'F', label: ['قوة الشد القصوى', 'Full draw force'], min: 60, max: 300, step: 5, def: 200, unit: 'N' },
+      { k: 'd', label: ['مسافة سحب الوتر', 'Draw distance'], min: 0.2, max: 0.7, step: 0.01, def: 0.5, unit: 'm' },
+      { k: 'm', label: ['كتلة السهم', 'Arrow mass'], min: 15, max: 60, step: 1, def: 30, unit: 'g' },
+    ],
+    // simplified model: the force grows evenly while drawing, so the stored energy is the work ½·F·d
+    compute(p) { const E = 0.5 * p.F * p.d, v = Math.sqrt(2 * E / (p.m / 1000)); return { E, v }; },
+    big: (r) => ({ k: 'v', v: fmt(r.v, 3) + ' m/s' }),
+    cards: (r, p) => [['v', ['الطاقة المرونية المختزنة', 'Stored elastic energy'], fmt(r.E, 3), 'J'], ['k', ['KE للسهم بعد الإفلات', 'Arrow KE after release'], fmt(r.E, 3), 'J'], ['e', ['سرعة السهم', 'Arrow speed'], fmt(r.v, 3), 'm/s']],
+    chart: (p) => { const pts = []; for (let x = 0; x <= p.d + 1e-9; x += p.d / 20) pts.push([x * 100, p.F * x / p.d]); return { series: [{ pts }], xLabel: NL.lang === 'ar' ? 'سحب الوتر (cm)' : 'draw (cm)', yLabel: 'F (N)', yMin: 0 }; },
+    build(S) {
+      const g = new THREE.Group(); S.root.add(g);
+      const Y = 1.5, limbM = mat(0x2a3550, { m: 0.4, r: 0.4 });
+      const limb = new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(V(0, -0.8, 0), V(0.42, 0, 0), V(0, 0.8, 0)), 40, 0.035, 10), limbM); limb.position.set(0, Y, 0); limb.castShadow = true; g.add(limb);
+      const grip = box(0.09, 0.22, 0.09, mat(C.wood)); grip.position.set(0.21, Y, 0); g.add(grip);
+      const s1 = rod(0.008, mat(C.rope)), s2 = rod(0.008, mat(C.rope)); g.add(s1, s2);
+      const arrowG = new THREE.Group(); g.add(arrowG);
+      const shaft = rod(0.012, mat(0xd8dde6)); shaft.between(V(0, 0, 0), V(0.8, 0, 0)); arrowG.add(shaft);
+      const tip = mesh(new THREE.ConeGeometry(0.03, 0.1, 12), mat(C.metal, { m: 0.8 })); tip.rotation.z = -Math.PI / 2; tip.position.x = 0.85; arrowG.add(tip);
+      const fl = box(0.12, 0.06, 0.005, mat(C.red)); fl.position.x = 0.07; arrowG.add(fl);
+      const target = cyl(0.5, 0.5, 0.12, mat(0xe9e2d0), 40); target.rotation.z = Math.PI / 2; target.position.set(6.2, Y, 0); g.add(target);
+      const ring = mesh(new THREE.TorusGeometry(0.28, 0.04, 8, 40), mat(C.red)); ring.rotation.y = Math.PI / 2; ring.position.set(6.13, Y, 0); g.add(ring);
+      const lD = label('', 'v sm'); g.add(lD);
+      const bars = energyBars(g, -1.9, 0.7, [[NL.lang === 'ar' ? 'مرونية' : 'Elastic', C.violet, 'v'], ['KE', C.acc, 'k']]);
+      return {
+        update(p, r, k) {
+          let pull, ax;
+          if (k < 0.45) { pull = ease(k / 0.45); ax = null; } else if (k < 0.5) { pull = 1 - (k - 0.45) / 0.05; ax = null; } else { pull = 0; ax = (k - 0.5) / 0.5; }
+          const back = 0.1 + pull * p.d * 0.9, nock = V(-back + 0.02, Y, 0);
+          s1.between(V(0, Y + 0.8, 0), nock); s2.between(V(0, Y - 0.8, 0), nock);
+          if (ax == null) arrowG.position.set(-back + 0.02, Y, 0); else arrowG.position.set(-0.08 + ease(Math.min(1, ax * 1.4)) * 5.4, Y, 0);
+          lD.position.set(-back - 0.25, Y + 0.25, 0.2); lD.set(ax == null ? `d = ${fmt(pull * p.d * 100, 3)} cm` : `v = ${fmt(r.v, 3)} m/s`);
+          const Ee = ax == null ? r.E * pull * pull : 0, KE = ax == null ? (k >= 0.45 ? r.E - Ee : 0) : r.E;
+          bars.set([Ee, KE], 2.0 / Math.max(r.E, 1e-6));
+        },
+      };
+    },
+    steps: [
+      { cam: [0.6, 2.2, 5.6], at: [0.2, 1.4, 0], text: () => NL.lang === 'ar' ? 'عند سحب الوتر تبذل **شغلًا** على القوس، فتزداد طاقة النظام المكوّن من القوس والسهم والأرض.' : 'Drawing the string, you do **work** on the bow, so the energy of the bow–arrow–Earth system grows.' },
+      { cam: [-1.8, 1.9, 4.2], at: [-0.6, 1.4, 0], text: (p, r) => NL.lang === 'ar' ? `تُختزن هذه الطاقة في الوتر المشدود على شكل **طاقة وضع مرونية**: نحو ${fmt(r.E)} J في هذا النموذج.` : `It is stored in the stretched string as **elastic potential energy**: about ${fmt(r.E)} J in this model.` },
+      { cam: [2.4, 2.0, 6.4], at: [2.6, 1.4, 0], text: (p, r) => NL.lang === 'ar' ? `عند الإفلات تنتقل الطاقة إلى السهم على شكل **طاقة حركية**، فينطلق بسرعة ${fmt(r.v)} m/s تقريبًا.` : `On release the energy passes to the arrow as **kinetic energy**, flying off at about ${fmt(r.v)} m/s.` },
+      { cam: [0.4, 3.0, 6.8], at: [0.8, 1.2, 0], text: () => NL.lang === 'ar' ? 'شد الوتر أكثر أو استخدم قوسًا أقوى: يزداد الشغل فتزداد الطاقة المختزنة. **سهم أخف** يأخذ الطاقة نفسها بسرعة أكبر.' : 'Draw further or use a stronger bow: more work, more stored energy. A **lighter arrow** takes the same energy at a higher speed.' },
+    ],
+  });
+
+  SCENES.push({
+    id: 'vault', title: ['القفز بالزانة', 'Pole vault'], sub: ['من الحركية إلى المرونية إلى الجاذبية · الشكل 8-5', 'Kinetic → elastic → gravitational · Figure 5-8'],
+    params: [
+      { k: 'v', label: ['سرعة الركض', 'Run-up speed'], min: 6, max: 10, step: 0.1, def: 9, unit: 'm/s' },
+      { k: 'm', label: ['كتلة اللاعب', 'Athlete mass'], min: 55, max: 90, step: 1, def: 75, unit: 'kg' },
+    ],
+    // ideal model: all of the run-up kinetic energy ends as height of the centre of mass (which starts about 1 m up)
+    compute(p) { const KE = 0.5 * p.m * p.v * p.v, dh = p.v * p.v / (2 * G); return { KE, dh, top: 1 + dh }; },
+    big: (r) => ({ k: 'h', v: fmt(r.top, 3) + ' m' }),
+    cards: (r, p) => [['k', ['KE عند الركض', 'Run-up KE'], fmt(r.KE, 3), 'J'], ['e', ['PE الأقصى = mgΔh', 'Max PE = mgΔh'], fmt(r.KE, 3), 'J'], ['k', ['ارتفاع مركز الكتلة', 'Centre of mass height'], fmt(r.top, 3), 'm']],
+    chart: (p) => { const pts = []; for (let v = 6; v <= 10.001; v += 0.25) pts.push([v, 1 + v * v / (2 * G)]); return { series: [{ pts }], mark: [p.v, 1 + p.v * p.v / (2 * G)], xLabel: NL.lang === 'ar' ? 'سرعة الركض (m/s)' : 'run-up speed (m/s)', yLabel: 'h (m)', yMin: 0 }; },
+    build(S) {
+      const g = new THREE.Group(); S.root.add(g);
+      const track = box(14, 0.02, 1.4, mat(0xa64b2a, { r: 0.9 })); track.position.set(-2, 0.01, 0); g.add(track);
+      const boxPit = box(0.4, 0.05, 0.4, mat(C.dark)); boxPit.position.set(0, 0.03, 0); g.add(boxPit);
+      const mat2 = box(3, 0.5, 3, mat(0x2f5fa8, { r: 0.9 })); mat2.position.set(2.2, 0.25, 0); g.add(mat2);
+      const postM = mat(C.metal, { m: 0.6 });
+      [-1.4, 1.4].forEach((z) => { const post = cyl(0.04, 0.04, 6.4, postM, 12); post.position.set(0.6, 3.2, z); g.add(post); });
+      const bar = cyl(0.025, 0.025, 2.8, mat(C.acc, { e: C.acc, ei: 0.3 }), 12); bar.rotation.x = Math.PI / 2; g.add(bar);
+      const athlete = new THREE.Group(); g.add(athlete);
+      const torso = mesh(new THREE.CapsuleGeometry(0.17, 0.6, 6, 12), mat(C.red)); athlete.add(torso);
+      const head = mesh(new THREE.SphereGeometry(0.13, 16, 12), mat(0xc9a27a)); head.position.y = 0.55; athlete.add(head);
+      const legs = mesh(new THREE.CapsuleGeometry(0.11, 0.7, 6, 10), mat(0x1d2740)); legs.position.y = -0.62; athlete.add(legs);
+      const pole = new THREE.Mesh(new THREE.TubeGeometry(new THREE.LineCurve3(V(0, 0, 0), V(0, 1, 0)), 1, 0.03, 8), mat(0xf0f3f8)); g.add(pole);
+      const lH = label('', 'k sm'); g.add(lH);
+      const bars = energyBars(g, -6.2, 0.6, [['KE', C.acc, 'k'], [NL.lang === 'ar' ? 'مرونية' : 'Elastic', C.violet, 'v'], ['PE', C.sig, 'e']]);
+      const L = 4.6;
+      return {
+        update(p, r, k) {
+          bar.position.set(0.6, r.top + 0.15, 0);
+          let x, y, rot = 0, bend = 0, KE, Ee, PE;
+          const tot = r.KE;
+          if (k < 0.3) { const u = k / 0.3; x = -7 + u * 6.2; y = 1; KE = tot; Ee = 0; PE = 0; }
+          else if (k < 0.55) { const u = ease((k - 0.3) / 0.25); x = -0.8 + u * 0.3; y = 1 + u * 0.6; bend = u; rot = u * 0.5; Ee = tot * 0.75 * u; PE = tot * (0.6 / r.dh) * u; KE = Math.max(0, tot - Ee - PE); }
+          else if (k < 0.85) { const u = ease((k - 0.55) / 0.3); x = -0.5 + u * 1.1; y = 1.6 + u * (r.top - 1.6); bend = 1 - u; rot = 0.5 + u * 2.4; const pe = tot * (y - 1) / r.dh; Ee = tot * 0.75 * (1 - u); PE = pe; KE = Math.max(0, tot - Ee - PE); }
+          else { const u = (k - 0.85) / 0.15; x = 0.6 + u * 1.4; y = r.top - u * u * (r.top - 0.9); rot = 2.9 + u; PE = tot * (y - 1) / r.dh; Ee = 0; KE = Math.max(0, tot - PE); }
+          athlete.position.set(x, y, 0); athlete.rotation.z = -rot;
+          // the pole: from the box to the hands, bowed while bent
+          const hands = k < 0.3 ? V(x + 0.3, 1.2, 0) : k < 0.85 ? athlete.localToWorld(V(0, 0.35, 0)) : null;
+          if (hands) {
+            const base = k < 0.3 ? V(x + 0.3 + L * 0.9, 1.2 + 0.3, 0) : V(0, 0.05, 0);
+            const mid = base.clone().lerp(hands, 0.5).add(V(-0.9 * bend, 0.6 * bend, 0));
+            pole.geometry.dispose(); pole.geometry = new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(base, mid, hands), 24, 0.03, 8); pole.visible = true;
+          } else pole.visible = false;
+          lH.position.set(x - 0.6, y + 0.4, 0.3); lH.set(`h = ${fmt(y, 3)} m`);
+          bars.set([KE, Ee, PE], 2.6 / Math.max(tot, 1e-6));
+        },
+      };
+    },
+    steps: [
+      { cam: [-3.5, 2.4, 9.5], at: [-3, 1.5, 0], text: (p, r) => NL.lang === 'ar' ? `يركض اللاعب حاملًا الزانة، فيكتسب **طاقة حركية** نحو ${fmt(r.KE)} J.` : `The athlete runs with the pole, gaining about ${fmt(r.KE)} J of **kinetic energy**.` },
+      { cam: [-1.2, 2.2, 7.0], at: [-0.4, 1.6, 0], text: () => NL.lang === 'ar' ? 'يغرز طرف الزانة ويثنيها: يتحول جزء من الطاقة الحركية إلى **طاقة وضع مرونية** في الزانة المنحنية.' : 'He plants the pole and bends it: part of the kinetic energy becomes **elastic potential energy** in the bent pole.' },
+      { cam: [0.4, 3.6, 8.4], at: [0.2, 3.0, 0], text: (p, r) => NL.lang === 'ar' ? `تستقيم الزانة فتتحول الطاقة المرونية إلى **طاقة وضع جاذبية** وطاقة حركية، فيرتفع حتى نحو ${fmt(r.top)} m.` : `The pole straightens; elastic energy becomes **gravitational potential energy** and kinetic energy, lifting him to about ${fmt(r.top)} m.` },
+      { cam: [3.2, 3.0, 8.0], at: [0.8, 2.6, 0], text: () => NL.lang === 'ar' ? 'لهذا غيّرت **زانات الألياف الزجاجية** هذه الرياضة: تنثني أكثر وتختزن طاقة مرونية أكبر من الخيزران والمعادن. جرّب سرعة ركض أكبر.' : 'That is why **fibreglass poles** changed the sport: they bend more and store more elastic energy than bamboo or metal. Try a faster run-up.' },
+    ],
+  });
+
   NL.SCENES3D = SCENES;
 
   /* ---------- player ---------- */

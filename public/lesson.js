@@ -3,7 +3,7 @@
   const { $, $$, esc, t, tt, fmt, uid, store, ai, icon } = NL;
   NL.addT({
     cmAll: ['أظهر كل العلاقات', 'Show all links'], cmPick: ['اضغط أي مفهوم لترى تعريفه والمفاهيم المرتبطة به. اضغط عنوان جزء لتفتح شرحه.', 'Tap a concept to see its definition and links. Tap a part to open its explanation.'], cmOther: ['مفاهيم أخرى', 'Other concepts'],
-    tab_3d: ['شرح ثلاثي الأبعاد', '3D explainer'], s3dLead: ['شاهد كل آلة تعمل أمامك، وغيّر المتغيرات لترى القوى والمسافات والكفاءة تتغير لحظيًا.', 'Watch each machine work, and change the variables to see forces, distances and efficiency update live.'],
+    tab_3d: ['شرح ثلاثي الأبعاد', '3D explainer'], s3dLead: ['شاهد الفكرة تعمل أمامك في مشهد ثلاثي الأبعاد، وغيّر المتغيرات لترى القيم تتغير لحظيًا.', 'Watch the idea at work in 3D, and change the variables to see the values update live.'],
     bankSrc: ['مصدر الأسئلة', 'Question source'], src_bank: ['بنك أسئلة الدرس الجاهز', 'The lesson’s ready question bank'], src_ai: ['أسئلة جديدة بالذكاء الاصطناعي', 'New AI-written questions'],
     solvedT: ['مسائل الكتاب محلولة خطوة بخطوة', 'Book problems solved step by step'], problemN: ['مسألة {n}', 'Problem {n}'], selfCheck: ['قارن تفسيرك بالتفسير النموذجي', 'Compare with the model explanation'], selfRate: ['كيف كان تفسيرك؟', 'How did you do?'], rate_full: ['مطابق', 'Matched it'], rate_part: ['جزئي', 'Partly'], rate_miss: ['فاتني الكثير', 'Missed a lot'],
     estTime: ['وقت دراسة مقترح ~{n} دقيقة (تقدير)', 'Suggested study time ~{n} min (estimate)'], pagesCount: ['{n} صفحة من مادتك', '{n} pages of your material'],
@@ -119,9 +119,9 @@
       <section class="ws-main"><div class="ws-body" id="ws-body"></div></section></div>`;
     $$('.ws-tab', v).forEach((b) => (b.onclick = () => W.open(b.dataset.tab)));
     $('#ws-present', v)?.addEventListener('click', () => NL.present(W.lesson, W.gen, { level: W.state.level || 'medium' }));
-    $('#ws-claude', v)?.addEventListener('click', () => {
+    $('#ws-claude', v)?.addEventListener('click', async () => {
       // the pages' own text when there is one, otherwise the lesson as the platform understood it
-      const L = W.lesson, a = L.analysis || {}, pages = (L.pages || []).filter((p) => p.text?.trim());
+      const L = W.lesson, a = L.analysis || {}, pages = ((await W.pages().catch(() => null)) || L.pages || []).filter((p) => p.text?.trim());
       const text = pages.length ? pages.map((p) => `[${p.label || ''}]\n${p.text}`).join('\n\n')
         : [a.summary, ...(a.sections || []).map((x) => `## ${x.title}\n${x.summary || ''}`), ...(a.concepts || []).map((c) => `- ${c.name}: ${c.definition}`), ...(a.formulas || []).map((f) => `- ${f.name || ''}: ${f.latex || f.expr || ''}`)].filter(Boolean).join('\n\n');
       NL.askClaude(L.title, text);

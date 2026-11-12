@@ -61,7 +61,7 @@
   NL.go = (route, params = {}) => {
     app.cleanup.forEach((f) => { try { f(); } catch {} }); app.cleanup = [];
     app.route = route; app.params = params;
-    const hash = route === 'lesson' ? 'l-' + params.id : route === 'home' ? '' : route;
+    const hash = route === 'lesson' ? 'l-' + params.id : route === 'home' ? '' : route === 'library' && params.folder ? 'f-' + params.folder : route;
     try { history.replaceState(null, '', hash ? '#' + hash : location.pathname); } catch {}
     window.scrollTo({ top: 0 });
     NL.renderShell();
@@ -279,7 +279,37 @@
     });
   }
 
-  function renderLibrary(v) {
+  /* ready-made folders (e.g. the grade 11 physics book): one card in the library, opened into chapters */
+  const FOLDERS = () => NL.FOLDERS || {};
+  function folderCard(id) {
+    const f = FOLDERS()[id], ls = app.lessons.filter((l) => l.folder === id);
+    const done = ls.filter((l) => NL.progress(l).pct >= 100).length, pct = ls.length ? Math.round(ls.reduce((n, l) => n + NL.progress(l).pct, 0) / ls.length) : 0;
+    return `<article class="lcard fcard" data-folder="${esc(id)}">
+      <a class="lcard-cover fcover" href="#f-${esc(id)}" data-folder-open="${esc(id)}" aria-label="${esc(f.title)}">
+        <div class="fstack">${ls.slice(0, 3).map((l) => l.cover ? `<img src="${l.cover}" alt="" loading="lazy">` : '').join('')}</div>
+        <span class="badge st-ready">${t('readyMade')}</span>
+      </a>
+      <div class="lcard-body">
+        <p class="lcard-meta"><span class="subj-dot s-physics"></span>${t('folderT')}</p>
+        <h3 class="lcard-title">${esc(f.title)}</h3>
+        <p class="fine">${esc(t('folderSub', { c: f.chapters.length, n: ls.length }))}</p>
+        <div class="meter" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
+        <p class="lcard-prog"><b>${pct}%</b> ${t('progress')}${done ? ` · ${esc(t('folderDone', { n: done }))}` : ''}</p>
+        <div class="lcard-actions"><button class="btn sm" data-folder-open="${esc(id)}">${icon('books')} ${t('folderOpen')}</button><span class="fine">${esc(f.grade || '')}</span></div>
+      </div>
+    </article>`;
+  }
+  function folderView(id, list) {
+    const f = FOLDERS()[id];
+    return `<div class="folder-head"><button class="link back" data-folder-close>${icon('back')} ${t('libTitle')}</button><h2>${esc(f.title)}</h2><p class="lead-sm">${esc(f.sub || '')}</p></div>` +
+      f.chapters.map((c) => {
+        const ls = list.filter((l) => l.unit === c.unit).sort((a, b) => String(a.chapter).localeCompare(String(b.chapter), 'en', { numeric: true }));
+        return ls.length ? `<section class="fchap"><header><span class="fnum">${esc(c.n)}</span><div><p class="fine">${esc(t('chapterN', { n: c.n }))}</p><h3>${esc(c.title)}</h3></div><span class="fine fcount">${esc(t('lessonsCount', { n: ls.length }))}</span></header><div class="lib-grid">${ls.map(lessonCard).join('')}</div></section>` : '';
+      }).join('');
+  }
+
+  function renderLibrary(v, params = {}) {
+    let folder = params.folder && FOLDERS()[params.folder] ? params.folder : '';
     const prefs = NL.lsGet('libprefs', { q: '', subj: '', unit: '', sort: 'recent' });
     v.innerHTML = `<div class="page-head"><div><h1>${t('libTitle')}</h1><p class="lead-sm" id="lib-count"></p></div>
         <div class="row gap wrap"><button class="btn ghost sm" id="bk-export">${icon('down')} ${t('exportB')}</button><label class="btn ghost sm">${icon('up')} ${t('importB')}<input type="file" accept="application/json,.json" id="bk-import" hidden></label><a class="btn" href="#new" data-go="new">${icon('plus')} ${t('newLesson')}</a></div></div>
@@ -303,6 +333,10 @@
       catch { NL.toast(t('importBad'), 'bad'); }
     };
     const grid = $('#lib-grid', v); bindCards(grid);
+    grid.addEventListener('click', (e) => {
+      const fo = e.target.closest('[data-folder-open]'); if (fo) { e.preventDefault(); folder = fo.dataset.folderOpen; try { history.replaceState(null, '', '#f-' + folder); } catch {} window.scrollTo({ top: 0 }); draw(); return; }
+      if (e.target.closest('[data-folder-close]')) { folder = ''; try { history.replaceState(null, '', '#library'); } catch {} draw(); }
+    });
     $('#lib-subj', v).value = prefs.subj; $('#lib-sort', v).value = prefs.sort;
     const draw = () => {
       const q = $('#lib-q', v).value.trim().toLowerCase(), subj = $('#lib-subj', v).value, sort = $('#lib-sort', v).value;
@@ -318,7 +352,13 @@
       $('#lib-count', v).textContent = app.loaded ? t('lessonsCount', { n: app.lessons.length }) : t('storagePending');
       if (!app.loaded) { grid.innerHTML = `<div class="skeleton-row">${'<div class="sk"></div>'.repeat(3)}</div>`; return; }
       if (!app.lessons.length) { grid.innerHTML = emptyLibrary(); bindGo(grid); return; }
-      grid.innerHTML = list.length ? list.map(lessonCard).join('') : `<div class="empty-mini">${t('noMatch')}</div>`;
+      const fids = Object.keys(FOLDERS()).filter((id) => app.lessons.some((l) => l.folder === id));
+      grid.classList.toggle('in-folder', !!folder && !q);
+      if (folder && !q) { grid.innerHTML = folderView(folder, list.filter((l) => l.folder === folder)); return; }
+      // searching shows matching lessons from inside folders too; otherwise each folder is one card
+      const shown = q || unit ? list : list.filter((l) => !l.folder);
+      const cards = (q || unit ? [] : fids.map(folderCard)).concat(shown.map(lessonCard));
+      grid.innerHTML = cards.length ? cards.join('') : `<div class="empty-mini">${t('noMatch')}</div>`;
     };
     ['#lib-q', '#lib-subj', '#lib-unit', '#lib-sort'].forEach((s) => $(s, v).addEventListener('input', draw));
     draw();

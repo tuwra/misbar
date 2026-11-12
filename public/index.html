@@ -240,6 +240,14 @@ body.is-login .nav, body.is-login #status-store, body.is-login #status-ai, body.
 @media (max-width: 760px) { .filters { grid-template-columns: 1fr 1fr; } .search { grid-column: 1 / -1; } }
 .lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: var(--s-5); }
 .lcard { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow); transition: transform .25s var(--ease), border-color .25s, opacity .3s; min-width: 0; }
+.lib-grid.in-folder { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); }
+.folder-head { display: grid; gap: 6px; } .folder-head h2 { margin: 4px 0 0; text-wrap: balance; } .folder-head .back { justify-self: start; background: none; border: 0; cursor: pointer; color: var(--signal); padding: 0; font: inherit; display: inline-flex; gap: 6px; align-items: center; }
+.fchap { display: grid; gap: var(--s-4); } .fchap header { display: flex; align-items: center; gap: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.fchap header h3 { margin: 0; font-size: 1.15rem; } .fchap header p { margin: 0; } .fcount { margin-inline-start: auto; }
+.fnum { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-family: var(--f-mono); font-weight: 600; font-size: 1.1rem; background: var(--surface-2); color: var(--signal); border: 1px solid var(--line); flex: none; }
+.fcard { border-color: color-mix(in srgb, var(--signal) 45%, var(--line)); }
+.fcover .fstack { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.fcover .fstack img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .lcard:hover { transform: translateY(-3px); border-color: var(--line-2); }
 .lcard.leaving { opacity: 0; transform: scale(.96); }
 .lcard-cover { position: relative; display: block; aspect-ratio: 16 / 7.5; max-width: 100%; overflow: hidden; border-radius: var(--r-lg) var(--r-lg) 0 0; background: var(--bg-2); }
@@ -700,7 +708,7 @@ table.sym td:last-child { color: var(--mute); font-family: var(--f-mono); text-a
 .s3d-labels .l3d { left: 0; top: 0; }
 .s3d-wait { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center; color: var(--fg-2); }
 .l3d { font: 600 12px var(--f-body); padding: 3px 8px; border-radius: 6px; background: rgba(9,14,26,.82); border: 1px solid var(--line-2); color: var(--fg); white-space: nowrap; pointer-events: none; direction: ltr; unicode-bidi: plaintext; }
-.l3d.e { border-color: #5CC8FF; color: #9fe0ff; } .l3d.r { border-color: #ff6b6b; color: #ffb4b4; } .l3d.k { border-color: #F2B544; color: #ffd98a; } .l3d.sm { font-size: 11px; padding: 2px 6px; }
+.l3d.e { border-color: #5CC8FF; color: #9fe0ff; } .l3d.v { border-color: #A78BFA; color: #d4c6ff; } .l3d.g { border-color: #4ADE9A; color: #a8f0c9; } .l3d.r { border-color: #ff6b6b; color: #ffb4b4; } .l3d.k { border-color: #F2B544; color: #ffd98a; } .l3d.sm { font-size: 11px; padding: 2px 6px; }
 .s3d-title { position: absolute; top: 14px; inset-inline-end: 16px; text-align: end; pointer-events: none; }
 [dir="rtl"] .s3d-title { text-align: start; }
 .s3d-title small { display: block; font: 500 .72rem var(--f-mono); color: var(--mute); letter-spacing: .04em; }
@@ -713,7 +721,7 @@ table.sym td:last-child { color: var(--mute); font-family: var(--f-mono); text-a
 .s3d-card { display: grid; gap: 0; min-width: 112px; padding: 5px 10px; border-radius: 10px; background: rgba(13,20,36,.86); border: 1px solid var(--line-2); border-inline-start: 3px solid var(--mute); backdrop-filter: blur(6px); }
 .s3d-card span { font-size: .7rem; color: var(--fg-2); } .s3d-card b { font: 600 .92rem var(--f-mono); direction: ltr; text-align: end; color: var(--fg); } .s3d-card small { color: var(--mute); font-weight: 400; }
 [dir="rtl"] .s3d-card b { text-align: start; }
-.s3d-card.c-e { border-inline-start-color: #5CC8FF; } .s3d-card.c-r { border-inline-start-color: #ff6b6b; } .s3d-card.c-k { border-inline-start-color: #F2B544; }
+.s3d-card.c-e { border-inline-start-color: #5CC8FF; } .s3d-card.c-r { border-inline-start-color: #ff6b6b; } .s3d-card.c-k { border-inline-start-color: #F2B544; } .s3d-card.c-v { border-inline-start-color: #A78BFA; } .s3d-card.c-g { border-inline-start-color: #4ADE9A; }
 .s3d-hint { position: absolute; top: 64px; inset-inline-end: 16px; font-size: .74rem; color: var(--mute); pointer-events: none; }
 .s3d-narr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 16px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); color: var(--fg); }
 .s3d-dots { display: flex; gap: 6px; } .s3d-dots button { width: 9px; height: 9px; border-radius: 50%; border: 0; background: var(--line-2); cursor: pointer; padding: 0; } .s3d-dots button.on { background: var(--accent); width: 22px; border-radius: 6px; }
@@ -914,6 +922,20 @@ body.is-login .credits { position: relative; z-index: 2; }
 <script src="views.js"></script>
 <script src="scene3d.js"></script>
 <script src="builtin/machines.js"></script>
+<script src="builtin/g11/index.js"></script>
+<script src="builtin/g11/4-1.js"></script>
+<script src="builtin/g11/5-1.js"></script>
+<script src="builtin/g11/5-2.js"></script>
+<script src="builtin/g11/6-1.js"></script>
+<script src="builtin/g11/6-2.js"></script>
+<script src="builtin/g11/1-1.js"></script>
+<script src="builtin/g11/1-2.js"></script>
+<script src="builtin/g11/2-1.js"></script>
+<script src="builtin/g11/2-2.js"></script>
+<script src="builtin/g11/2-3.js"></script>
+<script src="builtin/g11/3-1.js"></script>
+<script src="builtin/g11/3-2.js"></script>
+<!--g11-->
 <script src="teacher.js"></script>
 <script src="lesson.js"></script>
 <script src="vak.js"></script>
@@ -924,6 +946,7 @@ body.is-login .credits { position: relative; z-index: 2; }
   const route = () => {
     const h = location.hash.slice(1);
     if (h.startsWith('l-')) return NL.go('lesson', { id: h.slice(2) });
+    if (h.startsWith('f-')) return NL.go('library', { folder: h.slice(2) });
     if (['library', 'new', 'bench'].includes(h)) return NL.go(h);
     NL.go('home');
   };

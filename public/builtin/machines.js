@@ -364,7 +364,7 @@ a. $IMA = r_e/r_r = 4.00/35.6 = 0.112$. b. $MA = (e/100) \\times IMA = (95.0/100
   ];
 
   NL.BUILTIN = [{
-    id: 'builtin-machines', builtin: true, title: 'الآلات', subject: 'physics', unit: 'الفصل 4 · الطاقة والشغل والآلات البسيطة', chapter: '4-2',
+    id: 'builtin-machines', builtin: true, folder: 'g11', title: 'الآلات', subject: 'physics', unit: 'الفصل 4 · الطاقة والشغل والآلات البسيطة', chapter: '4-2',
     grade: 'فيزياء · ثاني ثانوي', createdAt: Date.UTC(2026, 10, 2), pageCount: pages.length, status: 'ready', cover: IMG + 'cover.jpg',
     readNotes: { weak: [], textLayerOnly: false }, analysis, pages, gen: { explain, summary, coach }, bank, solved,
     scenes3d: ['lever', 'pulley', 'wheel', 'incline', 'bike'],

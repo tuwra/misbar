@@ -46,6 +46,8 @@
     recent: ['آخر الدروس', 'Recent lessons'], viewAll: ['عرض الكل', 'View all'],
     home: ['الرئيسية', 'Home'], library: ['المكتبة', 'Library'],
     lessonsCount: ['{n} درس', '{n} lessons'],
+    folderT: ['مجلد دروس جاهزة', 'Ready-made folder'], folderSub: ['{c} فصول · {n} درسًا مشروحًا كاملًا', '{c} chapters · {n} fully explained lessons'],
+    folderOpen: ['افتح المجلد', 'Open folder'], folderDone: ['أنهيت {n}', '{n} finished'], chapterN: ['الفصل {n}', 'Chapter {n}'],
     storageLocal: ['محفوظ على هذا الجهاز فقط', 'Saved on this device only'],
     storagePending: ['جارٍ الاتصال بالحفظ…', 'Connecting storage…'],
     storageLocalHint: ['تُحفظ دروسك ونتائجك في متصفح هذا الجهاز دون حساب. مسح بيانات المتصفح يحذفها، ولنقلها لجهاز آخر استخدم «تصدير دروسي» من المكتبة.', 'Your lessons and results are kept in this browser, no account needed. Clearing browser data removes them; to move them to another device use “Export my lessons” in the library.'],
@@ -277,7 +279,12 @@
     },
     putPart(id, k, v) { return this.queue(this.p.part(id, k), v); },
     async getPages(id, count) {
-      const b = this.builtin(id); if (b) return b.pages;
+      const b = this.builtin(id);
+      if (b) {
+        // the book folder ships its page texts separately so the library loads fast
+        if (!b.pages && b.pagesUrl) b.pages = await fetch(b.pagesUrl).then((r) => r.json()).then((list) => list.map((p) => ({ ...p, label: `ص ${p.n}`, kind: 'pdf', quality: 'good', image: `${b.pageBase}p${p.n}.jpg`, thumb: `${b.pageBase}p${p.n}.jpg` }))).catch(() => null);
+        return b.pages || [];
+      }
       const out = [];
       for (let n = 1; n <= count; n++) out.push(await this._get(this.p.page(id, n)));
       return out.filter(Boolean);
