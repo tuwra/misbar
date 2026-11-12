@@ -88,7 +88,7 @@
     const a = l.analysis; if (!a) return ['overview'];
     const s = l.subject, hasLaws = a.laws.some((x) => x.valid), labby = ['physics', 'chemistry', 'math'].includes(s) || hasLaws || a.labs.length || a.functions.length;
     const geo = ['history', 'geography'].includes(s) || a.places.length;
-    return ['overview', 'styles', 'video', l.scenes3d?.length && '3d', 'explain', 'listen', 'assistant', labby && 'lab', 'map', geo && 'atlas', 'quiz', 'sort', (hasLaws || a.examples.length || ['physics', 'chemistry', 'math'].includes(s)) && 'solver', 'coach', 'board', 'summary', 'cards', 'mistakes', 'mastery', 'sources'].filter(Boolean);
+    return ['overview', 'styles', 'video', (NL.pickScenes ? (l.scenes3d = NL.pickScenes(l)) : l.scenes3d)?.length && '3d', 'explain', 'listen', 'assistant', labby && 'lab', 'map', geo && 'atlas', 'quiz', 'sort', (hasLaws || a.examples.length || ['physics', 'chemistry', 'math'].includes(s)) && 'solver', 'coach', 'board', 'summary', 'cards', 'mistakes', 'mastery', 'sources'].filter(Boolean);
   }
 
   /* ---------- load + shell ---------- */

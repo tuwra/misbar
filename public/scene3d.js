@@ -525,11 +525,634 @@
     ],
   });
 
+  /* ---------- gravitation and rotation scenes (chapters 1 and 2) ---------- */
+  const ar = () => NL.lang === 'ar';
+  const lineOf = (pts, color, op = 1) => new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent: op < 1, opacity: op }));
+
+  SCENES.push({
+    id: 'orbit', keys: ['كبلر', 'كوكب', 'الكواكب', 'إهليلج', 'الشمس', 'kepler', 'planet', 'ellipse'],
+    title: ['قوانين كبلر', 'Kepler’s laws'], sub: ['مدار إهليلجي ومساحات متساوية · الشكل 1-1', 'Elliptical orbit, equal areas · Figure 1-1'],
+    params: [
+      { k: 'e', label: ['تفلطح المدار e', 'Eccentricity e'], min: 0, max: 0.75, step: 0.01, def: 0.5, unit: '' },
+      { k: 'a', label: ['متوسط البعد عن الشمس', 'Mean distance from the Sun'], min: 0.4, max: 5.2, step: 0.1, def: 1, unit: 'AU' },
+    ],
+    compute(p) { const T = Math.pow(p.a, 1.5); return { T, rmin: p.a * (1 - p.e), rmax: p.a * (1 + p.e), ratio: (1 + p.e) / (1 - p.e) }; },
+    big: (r) => ({ k: 'T', v: fmt(r.T, 3) + (ar() ? ' سنة' : ' yr') }),
+    cards: (r, p) => [['k', ['أقرب بعد', 'Perihelion'], fmt(r.rmin, 3), 'AU'], ['e', ['أبعد بعد', 'Aphelion'], fmt(r.rmax, 3), 'AU'], ['r', ['السرعة القصوى ÷ الدنيا', 'Max ÷ min speed'], fmt(r.ratio, 3), ''], ['g', ['T² ÷ r³', 'T² ÷ r³'], '1.00', 'yr²/AU³']],
+    chart: (p) => { const pts = []; for (let a = 0.4; a <= 5.21; a += 0.2) pts.push([a, Math.pow(a, 1.5)]); return { series: [{ pts }], mark: [p.a, Math.pow(p.a, 1.5)], xLabel: 'r (AU)', yLabel: ar() ? 'T (سنة)' : 'T (yr)', yMin: 0 }; },
+    build(S) {
+      const g = new THREE.Group(); g.position.y = 1.2; S.root.add(g);
+      const A = 2.6;
+      const sun = mesh(new THREE.SphereGeometry(0.32, 32, 24), mat(C.acc, { e: C.acc, ei: 1.2 }), false); g.add(sun);
+      const planet = mesh(new THREE.SphereGeometry(0.14, 24, 18), mat(C.sig, { e: C.sig, ei: 0.3 })); g.add(planet);
+      let path = lineOf([V(0, 0, 0), V(1, 0, 0)], 0x8b97b0, 0.8); g.add(path);
+      const fanM = new THREE.MeshBasicMaterial({ color: C.sig, transparent: true, opacity: 0.28, side: THREE.DoubleSide });
+      const fans = [new THREE.Mesh(new THREE.BufferGeometry(), fanM), new THREE.Mesh(new THREE.BufferGeometry(), fanM.clone())]; fans[1].material.color.set(C.acc); fans.forEach((f) => g.add(f));
+      const lS = label(ar() ? 'الشمس في البؤرة' : 'Sun at a focus', 'k sm'); g.add(lS);
+      const lP = label('', 'e sm'); g.add(lP);
+      let lastE = -1;
+      const pos = (p, M) => { let E = M; for (let i = 0; i < 8; i++) E -= (E - p.e * Math.sin(E) - M) / (1 - p.e * Math.cos(E)); const b = A * Math.sqrt(1 - p.e * p.e); return V(A * (Math.cos(E) - p.e), 0, b * Math.sin(E)); };
+      const fan = (m, p, M0, dM) => { const v = [0, 0, 0]; for (let i = 0; i <= 24; i++) { const q = pos(p, M0 + dM * i / 24); v.push(q.x, q.y, q.z); } const idx = []; for (let i = 1; i <= 24; i++) idx.push(0, i, i + 1); m.geometry.dispose(); m.geometry = new THREE.BufferGeometry(); m.geometry.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); m.geometry.setIndex(idx); };
+      return {
+        update(p, r, k) {
+          if (p.e !== lastE) {
+            lastE = p.e; const pts = []; for (let i = 0; i <= 120; i++) pts.push(pos(p, i / 120 * Math.PI * 2));
+            g.remove(path); path.geometry.dispose(); path = lineOf(pts, 0x8b97b0, 0.8); g.add(path);
+            fan(fans[0], p, -0.35, 0.7); fan(fans[1], p, Math.PI - 0.35, 0.7);
+          }
+          g.position.x = A * p.e; const q = pos(p, k * Math.PI * 2); planet.position.copy(q);
+          lS.position.set(0, 0.6, 0); lP.position.copy(q).add(V(0, 0.4, 0));
+          const rr = q.length() / A * p.a; lP.set(`r = ${fmt(rr, 3)} AU`);
+        },
+      };
+    },
+    steps: [
+      { cam: [0, 8.5, 5.5], at: [0, 1.2, 0], text: () => ar() ? '**القانون الأول لكبلر:** مدارات الكواكب **إهليلجية**، والشمس في إحدى البؤرتين وليست في المركز.' : '**Kepler’s first law:** orbits are **ellipses** with the Sun at one focus, not at the centre.' },
+      { cam: [1.5, 8, 5], at: [0, 1.2, 0], text: () => ar() ? '**القانون الثاني:** الخط من الشمس إلى الكوكب يمسح **مساحات متساوية في أزمنة متساوية**. المساحتان الملونتان مُسحتا في الزمن نفسه.' : '**Second law:** the Sun–planet line sweeps **equal areas in equal times**. Both shaded areas take the same time.' },
+      { cam: [4.5, 4.5, 5], at: [1, 1.2, 0], text: (p, r) => ar() ? `لذلك يكون الكوكب **أسرع قرب الشمس**: هنا السرعة القصوى تساوي ${fmt(r.ratio)} ضعف الدنيا.` : `So the planet is **fastest near the Sun**: here its top speed is ${fmt(r.ratio)} times its lowest.` },
+      { cam: [0, 9.5, 2.5], at: [0, 1.2, 0], text: (p, r) => ar() ? `**القانون الثالث:** $T^2 \\propto r^3$. غيّر البعد: عند ${fmt(p.a)} AU يكون الزمن الدوري ${fmt(r.T)} سنة.` : `**Third law:** $T^2 \\propto r^3$. Change the distance: at ${fmt(p.a)} AU the period is ${fmt(r.T)} years.` },
+    ],
+  });
+
+  SCENES.push({
+    id: 'satellite', keys: ['قمر اصطناعي', 'أقمار', 'الجذب الكوني', 'جاذبية', 'مدار', 'سرعة مدارية', 'satellite', 'gravitation', 'orbit'],
+    title: ['قمر اصطناعي في مداره', 'A satellite in orbit'], sub: ['السرعة المدارية والزمن الدوري', 'Orbital speed and period'],
+    params: [{ k: 'h', label: ['الارتفاع عن سطح الأرض', 'Altitude'], min: 150, max: 36000, step: 50, def: 400, unit: 'km' }],
+    compute(p) { const GM = 6.67e-11 * 5.97e24, r = 6.38e6 + p.h * 1e3, v = Math.sqrt(GM / r), T = 2 * Math.PI * r / v; return { r, v, T, g: GM / (r * r) }; },
+    big: (r) => ({ k: 'v', v: fmt(r.v / 1000, 3) + ' km/s' }),
+    cards: (r) => [['e', ['السرعة المدارية v', 'Orbital speed v'], fmt(r.v, 3), 'm/s'], ['k', ['الزمن الدوري T', 'Period T'], fmt(r.T / 60, 3), 'min'], ['r', ['تسارع الجاذبية هناك', 'Gravity there'], fmt(r.g, 3), 'm/s²'], ['g', ['نصف قطر المدار', 'Orbit radius'], fmt(r.r / 1000, 4), 'km']],
+    chart: (p) => { const pts = []; for (let h = 150; h <= 36000; h += 900) pts.push([h, Math.sqrt(6.67e-11 * 5.97e24 / (6.38e6 + h * 1e3)) / 1000]); return { series: [{ pts }], mark: [p.h, Math.sqrt(6.67e-11 * 5.97e24 / (6.38e6 + p.h * 1e3)) / 1000], xLabel: 'h (km)', yLabel: 'v (km/s)', yMin: 0 }; },
+    build(S) {
+      const g = new THREE.Group(); g.position.y = 1.4; S.root.add(g);
+      const earth = mesh(new THREE.SphereGeometry(1, 48, 32), mat(0x2f6fb5, { r: 0.7 }), false); g.add(earth);
+      const land = mesh(new THREE.SphereGeometry(1.005, 24, 16), new THREE.MeshStandardMaterial({ color: 0x3f9b5a, wireframe: true, transparent: true, opacity: 0.35 }), false); g.add(land);
+      const sat = new THREE.Group(); g.add(sat);
+      sat.add(box(0.14, 0.14, 0.14, mat(C.metal, { m: 0.7 })));
+      const panel = box(0.5, 0.02, 0.14, mat(0x3a4fa0, { e: 0x1a2a6a })); sat.add(panel);
+      let ring = null; let lastH = -1, ang = 0;
+      const aV = arrow(C.sig), aF = arrow(C.red); g.add(aV, aF);
+      const lV = label('', 'e sm'), lF = label('', 'r sm'); g.add(lV, lF);
+      const R = (p) => 1.15 + 2.3 * Math.sqrt(p.h / 36000);
+      return {
+        update(p, r, k, dt) {
+          if (p.h !== lastH) { lastH = p.h; if (ring) { g.remove(ring); ring.geometry.dispose(); } const pts = []; for (let i = 0; i <= 96; i++) pts.push(V(Math.cos(i / 96 * 6.283) * R(p), 0, Math.sin(i / 96 * 6.283) * R(p))); ring = lineOf(pts, 0x8b97b0, 0.7); g.add(ring); }
+          ang += dt * 2 * Math.PI / (3 + r.T / 3600);
+          const rr = R(p), q = V(Math.cos(ang) * rr, 0, -Math.sin(ang) * rr); sat.position.copy(q); sat.rotation.y = ang;
+          earth.rotation.y += dt * 0.1;
+          const tan = V(-Math.sin(ang), 0, -Math.cos(ang));
+          aV.set(q, tan, 0.4 + r.v / 12000); aF.set(q, q.clone().multiplyScalar(-1), 0.3 + r.g / 25);
+          lV.position.copy(q).add(tan.clone().multiplyScalar(0.9)).add(V(0, 0.2, 0)); lV.set(`v = ${fmt(r.v / 1000, 3)} km/s`);
+          lF.position.copy(q).multiplyScalar(0.7).add(V(0, -0.25, 0)); lF.set(ar() ? 'قوة الجاذبية' : 'gravity');
+        },
+      };
+    },
+    steps: [
+      { cam: [0.0, 4.6, 9.9], at: [0, 1.4, 0], text: () => ar() ? 'تخيّل نيوتن مدفعًا على جبل: كلما زادت سرعة القذيفة الأفقية سقطت أبعد، وعند **السرعة المدارية** ينحني مسار سقوطها مع انحناء الأرض فلا تلمسها.' : 'Newton imagined a cannon on a mountain: the faster the shot, the farther it lands. At **orbital speed** its fall curves with the Earth and never reaches it.' },
+      { cam: [4.2, 2.7, 7.0], at: [0, 1.4, 0], text: () => ar() ? 'القمر الاصطناعي **يسقط باستمرار**: قوة الجاذبية (الأحمر) نحو مركز الأرض هي القوة المركزية، والسرعة (الأزرق) مماسية للمدار.' : 'A satellite is **always falling**: gravity (red) toward Earth’s centre is the centripetal force, and its velocity (blue) is tangent to the orbit.' },
+      { cam: [0.0, 8.0, 5.6], at: [0, 1.4, 0], text: (p, r) => ar() ? `$v = \\sqrt{\\frac{Gm_E}{r}}$: على ارتفاع ${fmt(p.h)} km تكون السرعة ${fmt(r.v / 1000)} km/s والزمن الدوري ${fmt(r.T / 60)} دقيقة.` : `$v = \\sqrt{\\frac{Gm_E}{r}}$: at ${fmt(p.h)} km the speed is ${fmt(r.v / 1000)} km/s and the period ${fmt(r.T / 60)} min.` },
+      { cam: [6.4, 4.0, 6.4], at: [0, 1.4, 0], text: () => ar() ? 'كلما ارتفع المدار **قلّت السرعة وطال الزمن الدوري**. عند نحو 36000 km يصبح الزمن الدوري يومًا كاملًا: المدار الثابت لأقمار البث.' : 'Higher orbits are **slower with longer periods**. Near 36 000 km the period is a full day: the geostationary orbit of TV satellites.' },
+    ],
+  });
+
+  SCENES.push({
+    id: 'spin', keys: ['الحركة الدورانية', 'دوران', 'راديان', 'سرعة زاوية', 'السرعة الزاوية', 'إزاحة زاوية', 'angular', 'rotation', 'radian'],
+    title: ['وصف الحركة الدورانية', 'Describing rotation'], sub: ['الإزاحة والسرعة الزاوية · v = ωr', 'Angular displacement and velocity · v = ωr'],
+    params: [
+      { k: 'w', label: ['السرعة الزاوية ω', 'Angular velocity ω'], min: 0.3, max: 6, step: 0.1, def: 1.5, unit: 'rad/s' },
+      { k: 'r', label: ['بعد النقطة الحمراء عن المحور', 'Red point’s distance from the axis'], min: 0.3, max: 1.6, step: 0.05, def: 1.5, unit: 'm' },
+    ],
+    compute(p) { return { v: p.w * p.r, v2: p.w * p.r / 2, T: 2 * Math.PI / p.w, ac: p.w * p.w * p.r }; },
+    big: (r) => ({ k: 'v = ωr', v: fmt(r.v, 3) + ' m/s' }),
+    cards: (r, p) => [['k', ['ω (لكل النقاط)', 'ω (every point)'], fmt(p.w, 3), 'rad/s'], ['r', ['v للنقطة الحمراء', 'v of red point'], fmt(r.v, 3), 'm/s'], ['e', ['v للنقطة الزرقاء (r/2)', 'v of blue point (r/2)'], fmt(r.v2, 3), 'm/s'], ['g', ['الزمن الدوري', 'Period'], fmt(r.T, 3), 's']],
+    chart: (p) => ({ series: [{ pts: [[0, 0], [1.6, p.w * 1.6]] }], mark: [p.r, p.w * p.r], xLabel: 'r (m)', yLabel: 'v (m/s)', yMin: 0 }),
+    build(S) {
+      const g = new THREE.Group(); g.position.y = 0.5; S.root.add(g);
+      const disc = cyl(1.8, 1.8, 0.08, mat(0x2a3550, { r: 0.6 }), 64); g.add(disc);
+      const rot = new THREE.Group(); g.add(rot);
+      for (let i = 0; i < 12; i++) { const s = box(1.75, 0.01, 0.015, mat(0x4a5a80)); s.position.y = 0.045; s.rotation.y = i * Math.PI / 12; rot.add(s); }
+      const ref = rod(0.02, mat(C.acc)); g.add(ref); ref.between(V(0, 0.06, 0), V(1.9, 0.06, 0));
+      const red = mesh(new THREE.SphereGeometry(0.09, 16, 12), mat(C.red, { e: C.red })); rot.add(red);
+      const blue = mesh(new THREE.SphereGeometry(0.08, 16, 12), mat(C.sig, { e: C.sig })); rot.add(blue);
+      const radius = rod(0.015, mat(0xffffff)); rot.add(radius);
+      const aR = arrow(C.red), aB = arrow(C.sig); g.add(aR, aB);
+      const lT = label('', 'k'); g.add(lT); const lR = label('', 'r sm'); g.add(lR);
+      let th = 0;
+      return {
+        update(p, r, k, dt) {
+          th = (th + p.w * dt) % (Math.PI * 2); rot.rotation.y = th;
+          const rr = Math.min(p.r, 1.7); red.position.set(rr, 0.12, 0); blue.position.set(rr / 2, 0.12, 0); radius.between(V(0, 0.08, 0), V(rr, 0.08, 0));
+          const wp = (x) => V(Math.cos(th) * x, 0.12, -Math.sin(th) * x), tan = V(-Math.sin(th), 0, -Math.cos(th));
+          aR.set(wp(rr), tan, 0.3 + r.v / 3); aB.set(wp(rr / 2), tan, 0.3 + r.v2 / 3);
+          lT.position.set(0, 1.1, 0); lT.set(`θ = ${fmt(th, 3)} rad = ${Math.round(th * 180 / Math.PI)}°`);
+          lR.position.copy(wp(rr)).add(V(0, 0.35, 0)); lR.set(`v = ${fmt(r.v, 3)} m/s`);
+        },
+      };
+    },
+    steps: [
+      { cam: [0, 4.2, 3.6], at: [0, 0.4, 0], text: () => ar() ? 'قرص يدور حول محوره. نقيس دورانه بـ**الإزاحة الزاوية** θ بالراديان: الدورة الكاملة $2\\pi$ rad.' : 'A disc turns about its axis. We measure the turn by **angular displacement** θ in radians: one revolution is $2\\pi$ rad.' },
+      { cam: [2.4, 3.4, 3.2], at: [0, 0.4, 0], text: (p) => ar() ? `**السرعة الزاوية** $\\omega = \\Delta\\theta/\\Delta t$ = ${fmt(p.w)} rad/s، وهي **نفسها لكل نقاط القرص**.` : `**Angular velocity** $\\omega = \\Delta\\theta/\\Delta t$ = ${fmt(p.w)} rad/s, the **same for every point**.` },
+      { cam: [3, 2, 2], at: [0.8, 0.4, 0], text: (p, r) => ar() ? `لكن **السرعة الخطية** تختلف: $v = r\\omega$. النقطة الحمراء ${fmt(r.v)} m/s، والزرقاء في منتصف المسافة ${fmt(r.v2)} m/s فقط.` : `But the **linear speed** differs: $v = r\\omega$. The red point moves at ${fmt(r.v)} m/s, the blue one halfway out at only ${fmt(r.v2)} m/s.` },
+      { cam: [0, 5, 2], at: [0, 0.4, 0], text: (p, r) => ar() ? `الزمن الدوري $T = 2\\pi/\\omega$ = ${fmt(r.T)} s. زِد ω وشاهد كل السرعات الخطية تزداد.` : `The period $T = 2\\pi/\\omega$ = ${fmt(r.T)} s. Raise ω and watch every linear speed grow.` },
+    ],
+  });
+
+  SCENES.push({
+    id: 'torque', keys: ['عزم', 'ذراع', 'مفتاح', 'ذراع القوة', 'torque', 'lever arm'],
+    title: ['عزم القوة', 'Torque'], sub: ['τ = F r sin θ · مفتاح الشد', 'τ = F r sin θ · a wrench'],
+    params: [
+      { k: 'F', label: ['القوة F', 'Force F'], min: 10, max: 200, step: 1, def: 60, unit: 'N' },
+      { k: 'r', label: ['بعد القوة عن المحور r', 'Distance from axis r'], min: 0.05, max: 0.5, step: 0.01, def: 0.3, unit: 'm' },
+      { k: 'th', label: ['الزاوية بين القوة والذراع θ', 'Angle θ between force and arm'], min: 0, max: 90, step: 1, def: 90, unit: '°' },
+    ],
+    compute(p) { const s = Math.sin(p.th * Math.PI / 180); return { tau: p.F * p.r * s, Fp: p.F * s, arm: p.r * s }; },
+    big: (r) => ({ k: 'τ', v: fmt(r.tau, 3) + ' N·m' }),
+    cards: (r, p) => [['e', ['القوة F', 'Force F'], p.F, 'N'], ['k', ['ذراع القوة r sin θ', 'Lever arm r sin θ'], fmt(r.arm, 3), 'm'], ['r', ['المركبة العمودية F sin θ', 'Perpendicular part F sin θ'], fmt(r.Fp, 3), 'N'], ['g', ['العزم τ', 'Torque τ'], fmt(r.tau, 3), 'N·m']],
+    chart: (p) => { const pts = []; for (let a = 0; a <= 90; a += 5) pts.push([a, p.F * p.r * Math.sin(a * Math.PI / 180)]); return { series: [{ pts }], mark: [p.th, p.F * p.r * Math.sin(p.th * Math.PI / 180)], xLabel: 'θ (°)', yLabel: 'τ (N·m)', yMin: 0 }; },
+    build(S) {
+      const g = new THREE.Group(); g.position.y = 0.9; S.root.add(g);
+      const plate = box(2.4, 1.4, 0.1, mat(0x3a4560)); plate.position.set(0, 0, -0.25); g.add(plate);
+      const bolt = cyl(0.12, 0.12, 0.3, mat(C.metal, { m: 0.8 }), 6); bolt.rotation.x = Math.PI / 2; g.add(bolt);
+      const wr = new THREE.Group(); g.add(wr);
+      const bar = box(1, 0.1, 0.05, mat(0xb8c2d2, { m: 0.8, r: 0.3 })); wr.add(bar);
+      const head = mesh(new THREE.TorusGeometry(0.16, 0.05, 8, 24), mat(0xb8c2d2, { m: 0.8 })); wr.add(head);
+      const aF = arrow(C.sig), aP = arrow(C.green); g.add(aF, aP);
+      const armLine = rod(0.01, mat(C.acc, { op: 0.8 })); g.add(armLine);
+      const lF = label('', 'e'), lT = label('', 'k'); g.add(lF, lT);
+      let rotA = 0;
+      return {
+        update(p, r, k, dt) {
+          rotA = (rotA + dt * Math.min(r.tau, 60) / 60) % (Math.PI * 2);
+          const L = 0.6 + p.r * 4; bar.scale.x = L; bar.position.x = L / 2; wr.rotation.z = rotA;
+          const end = V(Math.cos(rotA) * L, Math.sin(rotA) * L, 0.1);
+          const th = p.th * Math.PI / 180, dirArm = V(Math.cos(rotA), Math.sin(rotA), 0);
+          const fd = dirArm.clone().applyAxisAngle(V(0, 0, 1), th).normalize();
+          const len = 0.4 + p.F / 120;
+          aF.set(end.clone().sub(fd.clone().multiplyScalar(len)), fd, len);
+          const perp = dirArm.clone().applyAxisAngle(V(0, 0, 1), Math.PI / 2);
+          aP.set(end, perp, 0.15 + r.Fp / 120);
+          lF.position.copy(end).sub(fd.clone().multiplyScalar(len + 0.2)); lF.set(`F = ${p.F} N`);
+          lT.position.set(0, -0.95, 0.2); lT.set(`τ = ${fmt(r.tau, 3)} N·m`);
+          armLine.between(V(0, 0, 0.12), end.clone().setZ(0.12));
+        },
+      };
+    },
+    steps: [
+      { cam: [0, 1.2, 5.2], at: [0.6, 0.9, 0], text: () => ar() ? '**العزم** مقياس قدرة القوة على إحداث دوران. نؤثر بقوة في طرف المفتاح فيدور البرغي حول محوره.' : '**Torque** measures how well a force causes rotation. A force at the wrench’s end turns the bolt about its axis.' },
+      { cam: [0.6, 1.4, 4.4], at: [0.6, 0.9, 0], text: () => ar() ? '$\\tau = Fr\\sin\\theta$: يعتمد على **مقدار القوة**، و**بعدها عن المحور**، و**الزاوية** بينها وبين الذراع.' : '$\\tau = Fr\\sin\\theta$: it depends on **the force**, **its distance from the axis**, and **the angle** to the arm.' },
+      { cam: [1.6, 1.6, 4], at: [0.8, 0.9, 0], text: (p, r) => ar() ? `فقط المركبة **العمودية** على الذراع (الخضراء) $F\\sin\\theta$ = ${fmt(r.Fp)} N تدير المفتاح. جرّب θ = 0: لا دوران مهما كبرت القوة.` : `Only the **perpendicular** part (green) $F\\sin\\theta$ = ${fmt(r.Fp)} N turns it. Try θ = 0: no turning however strong the force.` },
+      { cam: [0, 1, 5.6], at: [0.6, 0.9, 0], text: () => ar() ? '**مفتاح أطول = عزم أكبر بالقوة نفسها.** لذلك نفك الصامولة العنيدة بمفتاح طويل، ونمسك المقبض من طرفه.' : '**A longer wrench gives more torque for the same force.** That is why a stubborn nut needs a long wrench held at its end.' },
+    ],
+  });
+
+  SCENES.push({
+    id: 'inertia', keys: ['القصور الذاتي', 'عزم القصور', 'تسارع زاوي', 'ديناميكا الحركة الدورانية', 'moment of inertia', 'angular acceleration'],
+    title: ['عزم القصور الذاتي', 'Moment of inertia'], sub: ['قانون نيوتن الثاني للدوران α = τ/I', 'Newton’s second law for rotation α = τ/I'],
+    params: [
+      { k: 'tau', label: ['العزم المؤثر τ', 'Applied torque τ'], min: 0.5, max: 10, step: 0.1, def: 4, unit: 'N·m' },
+      { k: 'm', label: ['كتلة كل ثقل', 'Each mass'], min: 0.5, max: 4, step: 0.1, def: 1, unit: 'kg' },
+      { k: 'r', label: ['بعد الأثقال عن المحور', 'Masses’ distance from axis'], min: 0.1, max: 0.9, step: 0.01, def: 0.5, unit: 'm' },
+    ],
+    compute(p) { const I = 2 * p.m * p.r * p.r, al = p.tau / I; return { I, al, w2: al * 2 }; },
+    big: (r) => ({ k: 'α', v: fmt(r.al, 3) + ' rad/s²' }),
+    cards: (r, p) => [['k', ['I = Σmr²', 'I = Σmr²'], fmt(r.I, 3), 'kg·m²'], ['e', ['τ', 'τ'], fmt(p.tau, 3), 'N·m'], ['r', ['α = τ/I', 'α = τ/I'], fmt(r.al, 3), 'rad/s²'], ['g', ['ω بعد 2 s', 'ω after 2 s'], fmt(r.w2, 3), 'rad/s']],
+    chart: (p) => { const pts = []; for (let x = 0.1; x <= 0.905; x += 0.05) pts.push([x, p.tau / (2 * p.m * x * x)]); return { series: [{ pts }], mark: [p.r, p.tau / (2 * p.m * p.r * p.r)], xLabel: 'r (m)', yLabel: 'α (rad/s²)', yMin: 0 }; },
+    build(S) {
+      const g = new THREE.Group(); g.position.y = 1.2; S.root.add(g);
+      const post = cyl(0.06, 0.06, 1.2, mat(C.dark), 16); post.position.y = -0.6; g.add(post);
+      const rot = new THREE.Group(); g.add(rot);
+      const barM = cyl(0.03, 0.03, 2, mat(0xb8c2d2, { m: 0.7 }), 12); barM.rotation.z = Math.PI / 2; rot.add(barM);
+      const mA = mesh(new THREE.SphereGeometry(0.15, 24, 16), mat(C.acc)), mB = mA.clone(); rot.add(mA, mB);
+      const lW = label('', 'k'); g.add(lW);
+      let w = 0, t = 0;
+      return {
+        update(p, r, k, dt) {
+          t += dt; if (t > 4) { t = 0; w = 0; }
+          w = r.al * t; rot.rotation.y += Math.min(w, 25) * dt;
+          const sc = 0.75 + p.m / 4; mA.scale.setScalar(sc); mB.scale.setScalar(sc);
+          const x = p.r * 1.1; mA.position.set(x, 0, 0); mB.position.set(-x, 0, 0);
+          lW.position.set(0, 0.7, 0); lW.set(`t = ${fmt(t, 2)} s   ω = ${fmt(w, 3)} rad/s`);
+        },
+      };
+    },
+    steps: [
+      { cam: [0, 2.6, 4.4], at: [0, 1.1, 0], text: () => ar() ? 'العزم يسبب **تسارعًا زاويًا** α، كما تسبب القوة تسارعًا خطيًا. هنا عزم ثابت يدير قضيبًا عليه ثقلان.' : 'Torque causes **angular acceleration** α, as force causes linear acceleration. A steady torque spins a rod with two masses.' },
+      { cam: [1.6, 2.2, 3.6], at: [0, 1.1, 0], text: (p, r) => ar() ? `**عزم القصور الذاتي** $I = \\sum mr^2$ = ${fmt(r.I)} kg·m² يقيس ممانعة الجسم لتغيير دورانه، ويعتمد على الكتلة **وتوزيعها**.` : `The **moment of inertia** $I = \\sum mr^2$ = ${fmt(r.I)} kg·m² measures resistance to changes in rotation; it depends on mass **and its distribution**.` },
+      { cam: [0, 3.4, 3], at: [0, 1.1, 0], text: (p, r) => ar() ? `**قانون نيوتن الثاني للدوران:** $\\alpha = \\frac{\\tau}{I}$ = ${fmt(r.al)} rad/s².` : `**Newton’s second law for rotation:** $\\alpha = \\frac{\\tau}{I}$ = ${fmt(r.al)} rad/s².` },
+      { cam: [2.2, 1.8, 3.4], at: [0, 1.1, 0], text: () => ar() ? 'حرّك الأثقال **بعيدًا عن المحور**: يتضاعف البعد فيصبح I أربعة أضعاف، ويصبح الدوران أبطأ بكثير. ولهذا يضم المتزلج ذراعيه ليدور أسرع.' : 'Move the masses **away from the axis**: doubling r makes I four times larger and the spin-up much slower. That is why skaters pull their arms in.' },
+    ],
+  });
+
+  SCENES.push({
+    id: 'balance', keys: ['الاتزان', 'اتزان', 'مركز الكتلة', 'استقرار', 'حامل', 'equilibrium', 'centre of mass', 'stability'],
+    title: ['الاتزان', 'Equilibrium'], sub: ['شرطا الاتزان: ΣF = 0 و Στ = 0', 'ΣF = 0 and Στ = 0'],
+    params: [
+      { k: 'm1', label: ['الكتلة اليسرى', 'Left mass'], min: 5, max: 60, step: 1, def: 30, unit: 'kg' },
+      { k: 'x1', label: ['بعدها عن الارتكاز', 'Its distance'], min: 0.3, max: 2, step: 0.05, def: 1, unit: 'm' },
+      { k: 'm2', label: ['الكتلة اليمنى', 'Right mass'], min: 5, max: 60, step: 1, def: 20, unit: 'kg' },
+      { k: 'x2', label: ['بعدها عن الارتكاز', 'Its distance'], min: 0.3, max: 2, step: 0.05, def: 1.5, unit: 'm' },
+    ],
+    compute(p) { const t1 = p.m1 * G * p.x1, t2 = p.m2 * G * p.x2; return { t1, t2, net: t2 - t1, N: (p.m1 + p.m2) * G, xb: p.m1 * p.x1 / p.m2 }; },
+    big: (r) => ({ k: 'Στ', v: fmt(r.net, 3) + ' N·m' }),
+    cards: (r) => [['r', ['عزم الكتلة اليسرى', 'Left torque'], fmt(r.t1, 3), 'N·m'], ['e', ['عزم الكتلة اليمنى', 'Right torque'], fmt(r.t2, 3), 'N·m'], ['k', ['قوة الارتكاز (ΣF = 0)', 'Pivot force (ΣF = 0)'], fmt(r.N, 3), 'N'], ['g', ['x₂ اللازم للاتزان', 'x₂ for balance'], fmt(r.xb, 3), 'm']],
+    chart: (p) => { const pts = []; for (let x = 0.3; x <= 2.01; x += 0.1) pts.push([x, p.m2 * G * x - p.m1 * G * p.x1]); return { series: [{ pts }], mark: [p.x2, p.m2 * G * p.x2 - p.m1 * G * p.x1], xLabel: 'x₂ (m)', yLabel: 'Στ (N·m)' }; },
+    build(S) {
+      const g = new THREE.Group(); S.root.add(g);
+      const piv = mesh(new THREE.ConeGeometry(0.3, 0.6, 3), mat(C.metal, { m: 0.5 })); piv.position.y = 0.3; piv.rotation.y = Math.PI / 6; g.add(piv);
+      const beamG = new THREE.Group(); beamG.position.y = 0.64; g.add(beamG);
+      const beam = box(4.6, 0.08, 0.3, mat(0x8a5a2b, { r: 0.7 })); beamG.add(beam);
+      const b1 = box(0.4, 0.4, 0.4, mat(C.red)), b2 = box(0.4, 0.4, 0.4, mat(C.sig)); beamG.add(b1, b2);
+      const aN = arrow(C.green); g.add(aN);
+      const l1 = label('', 'r sm'), l2 = label('', 'e sm'), lS = label('', 'k'); g.add(l1, l2, lS);
+      let tilt = 0;
+      return {
+        update(p, r, k, dt) {
+          const goal = Math.max(-0.2, Math.min(0.2, -r.net / 400)); tilt += (goal - tilt) * Math.min(1, dt * 3); beamG.rotation.z = tilt;
+          const s1 = 0.6 + p.m1 / 80, s2 = 0.6 + p.m2 / 80;
+          b1.scale.setScalar(s1); b2.scale.setScalar(s2);
+          b1.position.set(-p.x1 * 1.1, 0.04 + 0.2 * s1, 0); b2.position.set(p.x2 * 1.1, 0.04 + 0.2 * s2, 0);
+          aN.set(V(0, -0.1, 0.4), V(0, 1, 0), 0.4 + r.N / 700);
+          beamG.updateMatrixWorld();
+          l1.position.copy(b1.getWorldPosition(V(0, 0, 0))).add(V(0, 0.5, 0)); l1.set(`${p.m1} kg`);
+          l2.position.copy(b2.getWorldPosition(V(0, 0, 0))).add(V(0, 0.5, 0)); l2.set(`${p.m2} kg`);
+          lS.position.set(0, 1.9, 0); lS.set(Math.abs(r.net) < 2 ? (ar() ? 'متزن ✓' : 'Balanced ✓') : (ar() ? 'غير متزن' : 'Not balanced'));
+        },
+      };
+    },
+    steps: [
+      { cam: [0, 1.8, 5.8], at: [0, 0.8, 0], text: () => ar() ? 'لوح على نقطة ارتكاز وعليه كتلتان. يكون الجسم في **اتزان ميكانيكي** عندما لا تتغير سرعته الخطية ولا الزاوية.' : 'A beam on a pivot with two masses. A body is in **mechanical equilibrium** when neither its velocity nor its angular velocity changes.' },
+      { cam: [0.8, 1.2, 4.6], at: [0, 0.6, 0], text: (p, r) => ar() ? `**الشرط الأول** $\\sum F = 0$: قوة الارتكاز إلى أعلى تساوي الوزنين معًا ${fmt(r.N)} N.` : `**First condition** $\\sum F = 0$: the pivot pushes up with the total weight ${fmt(r.N)} N.` },
+      { cam: [0, 2.4, 5], at: [0, 0.8, 0], text: (p, r) => ar() ? `**الشرط الثاني** $\\sum \\tau = 0$: $m_1 g x_1 = m_2 g x_2$. الآن الفرق ${fmt(r.net)} N·m، فيميل اللوح.` : `**Second condition** $\\sum \\tau = 0$: $m_1 g x_1 = m_2 g x_2$. Right now the difference is ${fmt(r.net)} N·m, so the beam tips.` },
+      { cam: [1.4, 1.6, 5], at: [0, 0.8, 0], text: (p, r) => ar() ? `ضع الكتلة اليمنى على بعد ${fmt(r.xb)} m فيتزن اللوح: **الكتلة الأخف تحتاج ذراعًا أطول**.` : `Put the right mass at ${fmt(r.xb)} m and the beam balances: **the lighter mass needs a longer arm**.` },
+    ],
+  });
+  /* ---------- momentum, work, energy and heat scenes (chapters 3 to 6) ---------- */
+  function cart(color) {
+    const c = new THREE.Group();
+    const body = box(0.7, 0.3, 0.45, mat(color, { m: 0.3 })); body.position.y = 0.27; c.add(body);
+    [[-0.22, 0.2], [0.22, 0.2], [-0.22, -0.2], [0.22, -0.2]].forEach(([x, z]) => { const w = cyl(0.09, 0.09, 0.06, mat(C.dark), 16); w.rotation.x = Math.PI / 2; w.position.set(x, 0.1, z); c.add(w); });
+    c.body = body; return c;
+  }
+
+  SCENES.push({
+    id: 'collide', keys: ['تصادم', 'التصادم', 'الزخم', 'زخم', 'الدفع', 'مرن', 'collision', 'momentum', 'impulse'],
+    title: ['تصادم عربتين', 'Two carts collide'], sub: ['حفظ الزخم والطاقة الحركية', 'Momentum and kinetic energy'],
+    params: [
+      { k: 'm1', label: ['كتلة العربة الحمراء', 'Red cart mass'], min: 0.5, max: 5, step: 0.1, def: 1, unit: 'kg' },
+      { k: 'v1', label: ['سرعتها', 'Its velocity'], min: 0.5, max: 4, step: 0.1, def: 2, unit: 'm/s' },
+      { k: 'm2', label: ['كتلة العربة الزرقاء', 'Blue cart mass'], min: 0.5, max: 5, step: 0.1, def: 1, unit: 'kg' },
+      { k: 'v2', label: ['سرعتها', 'Its velocity'], min: -3, max: 1.5, step: 0.1, def: 0, unit: 'm/s' },
+      { k: 'e', label: ['المرونة (1 مرن، 0 ملتحم)', 'Elasticity (1 elastic, 0 sticks)'], min: 0, max: 1, step: 0.05, def: 1, unit: '' },
+    ],
+    compute(p) {
+      const v2 = Math.min(p.v2, p.v1 - 0.2), P = p.m1 * p.v1 + p.m2 * v2, M = p.m1 + p.m2, rel = p.v1 - v2;
+      const f1 = (P - p.m2 * p.e * rel) / M, f2 = (P + p.m1 * p.e * rel) / M;
+      const Ki = 0.5 * p.m1 * p.v1 ** 2 + 0.5 * p.m2 * v2 ** 2, Kf = 0.5 * p.m1 * f1 ** 2 + 0.5 * p.m2 * f2 ** 2;
+      return { v2, P, f1, f2, Ki, Kf, lost: Ki - Kf };
+    },
+    big: (r) => ({ k: 'p', v: fmt(r.P, 3) + ' kg·m/s' }),
+    cards: (r) => [['r', ['سرعة الحمراء بعد', 'Red after'], fmt(r.f1, 3), 'm/s'], ['e', ['سرعة الزرقاء بعد', 'Blue after'], fmt(r.f2, 3), 'm/s'], ['g', ['الزخم قبل = بعد', 'Momentum before = after'], fmt(r.P, 3), 'kg·m/s'], ['k', ['KE قبل → بعد', 'KE before → after'], `${fmt(r.Ki, 3)} → ${fmt(r.Kf, 3)}`, 'J']],
+    chart: (p) => { const pts = []; for (let e = 0; e <= 1.001; e += 0.1) { const r = SCENES.find((s) => s.id === 'collide').compute({ ...p, e }); pts.push([e, r.Kf]); } return { series: [{ pts }], mark: [p.e, SCENES.find((s) => s.id === 'collide').compute(p).Kf], xLabel: ar() ? 'المرونة' : 'elasticity', yLabel: 'KE بعد (J)', yMin: 0 }; },
+    build(S) {
+      const g = new THREE.Group(); S.root.add(g);
+      const track = box(11, 0.04, 0.9, mat(0x2a3550)); track.position.y = 0.02; g.add(track);
+      const c1 = cart(C.red), c2 = cart(C.sig); g.add(c1, c2);
+      const a1 = arrow(C.red), a2 = arrow(C.sig); g.add(a1, a2);
+      const l1 = label('', 'r sm'), l2 = label('', 'e sm'), lT = label('', 'k'); g.add(l1, l2, lT);
+      const bars = energyBars(g, -0.6, 1.3, [[ar() ? 'p حمراء' : 'p red', C.red, 'r'], [ar() ? 'p زرقاء' : 'p blue', C.sig, 'e'], [ar() ? 'p الكلي' : 'p total', C.green, 'g']]);
+      return {
+        update(p, r, k) {
+          const t = (k - 0.5) * 3, x1 = t < 0 ? p.v1 * t - 0.36 : r.f1 * t - 0.36, x2 = t < 0 ? r.v2 * t + 0.36 : r.f2 * t + 0.36;
+          const cl = (x) => Math.max(-5.2, Math.min(5.2, x));
+          c1.position.x = cl(x1); c2.position.x = cl(x2);
+          const u1 = t < 0 ? p.v1 : r.f1, u2 = t < 0 ? r.v2 : r.f2;
+          const s1 = 0.8 + p.m1 / 6, s2 = 0.8 + p.m2 / 6; c1.body.scale.set(1, s1, 1); c2.body.scale.set(1, s2, 1);
+          a1.visible = Math.abs(u1) > 0.05; a2.visible = Math.abs(u2) > 0.05;
+          a1.set(V(c1.position.x, 0.8, 0), V(Math.sign(u1) || 1, 0, 0), 0.3 + Math.abs(u1) / 2.5); a2.set(V(c2.position.x, 0.8, 0), V(Math.sign(u2) || 1, 0, 0), 0.3 + Math.abs(u2) / 2.5);
+          l1.position.set(c1.position.x, 1.2, 0); l1.set(`${fmt(u1, 3)} m/s`); l2.position.set(c2.position.x, 1.2, 0); l2.set(`${fmt(u2, 3)} m/s`);
+          lT.position.set(0, -0.25, 0.8); lT.set(t < 0 ? (ar() ? 'قبل التصادم' : 'Before') : (ar() ? 'بعد التصادم' : 'After'));
+          bars.position.z = -1.2; bars.set([p.m1 * u1, p.m2 * u2, r.P], 1.1 / Math.max(Math.abs(r.P), Math.abs(p.m1 * p.v1), Math.abs(p.m2 * r.f2), 0.1));
+        },
+      };
+    },
+    steps: [
+      { cam: [0.0, 3.1, 9.2], at: [0, 0.6, 0], text: () => ar() ? 'عربتان على مسار أملس تتصادمان. النظام **مغلق ومعزول**، فالقوى في أثناء التصادم داخلية.' : 'Two carts collide on a smooth track. The system is **closed and isolated**, so the collision forces are internal.' },
+      { cam: [1.5, 2.4, 6.8], at: [0, 0.6, 0], text: () => ar() ? 'كل عربة تؤثر في الأخرى بقوة مساوية ومعاكسة، فما تفقده إحداهما من زخم تكسبه الأخرى. **العمود الأخضر (الزخم الكلي) لا يتغير.**' : 'Each cart pushes the other equally and oppositely, so momentum lost by one is gained by the other. **The green bar (total momentum) never changes.**' },
+      { cam: [0.0, 3.6, 8.0], at: [0, 0.6, 0], text: (p, r) => ar() ? `أما **الطاقة الحركية** فتعتمد على نوع التصادم: قبل ${fmt(r.Ki)} J وبعد ${fmt(r.Kf)} J. المرن يحفظها، والملتحم يفقد جزءًا منها حرارةً وصوتًا.` : `**Kinetic energy** depends on the collision type: ${fmt(r.Ki)} J before, ${fmt(r.Kf)} J after. Elastic keeps it; sticking loses some as heat and sound.` },
+      { cam: [-1.8, 1.9, 6.2], at: [0, 0.4, 0], text: () => ar() ? 'جرّب: كتلتان متساويتان والثانية ساكنة ومرونة 1: **تتوقف الأولى وتنطلق الثانية بسرعتها** مثل كرات البلياردو.' : 'Try equal masses, the second at rest, elasticity 1: **the first stops and the second moves off at its speed**, like billiard balls.' },
+    ],
+  });
+
+  SCENES.push({
+    id: 'recoil', keys: ['ارتداد', 'الارتداد', 'حفظ الزخم', 'صاروخ', 'الدفع في الفضاء', 'recoil', 'rocket', 'conservation of momentum'],
+    title: ['الارتداد', 'Recoil'], sub: ['من السكون: الزخم الكلي يبقى صفرًا', 'From rest: total momentum stays zero'],
+    params: [
+      { k: 'mA', label: ['كتلة المتزلج الأيمن', 'Right skater mass'], min: 30, max: 100, step: 1, def: 68, unit: 'kg' },
+      { k: 'mB', label: ['كتلة المتزلج الأيسر', 'Left skater mass'], min: 20, max: 100, step: 0.5, def: 45.5, unit: 'kg' },
+      { k: 'vB', label: ['سرعة الأيسر بعد الدفع', 'Left skater speed after push'], min: 0.5, max: 3, step: 0.1, def: 1.5, unit: 'm/s' },
+    ],
+    compute(p) { const vA = p.mB * p.vB / p.mA; return { vA, p: p.mB * p.vB }; },
+    big: (r) => ({ k: 'vA', v: fmt(r.vA, 3) + ' m/s' }),
+    cards: (r, p) => [['e', ['زخم الأيسر', 'Left momentum'], '−' + fmt(r.p, 3), 'kg·m/s'], ['r', ['زخم الأيمن', 'Right momentum'], '+' + fmt(r.p, 3), 'kg·m/s'], ['g', ['الزخم الكلي', 'Total momentum'], '0', 'kg·m/s'], ['k', ['نسبة السرعتين', 'Speed ratio'], fmt(p.mA / p.mB, 3), '']],
+    chart: (p) => { const pts = []; for (let m = 30; m <= 100; m += 5) pts.push([m, p.mB * p.vB / m]); return { series: [{ pts }], mark: [p.mA, p.mB * p.vB / p.mA], xLabel: 'mA (kg)', yLabel: 'vA (m/s)', yMin: 0 }; },
+    build(S) {
+      const g = new THREE.Group(); S.root.add(g);
+      const ice = box(10, 0.02, 3, mat(0xcfe6f5, { r: 0.15, m: 0.1 })); ice.position.y = 0.01; g.add(ice);
+      const person = (color) => { const q = new THREE.Group(); const b = mesh(new THREE.CapsuleGeometry(0.2, 0.7, 6, 12), mat(color)); b.position.y = 0.75; q.add(b); const h = mesh(new THREE.SphereGeometry(0.15, 16, 12), mat(0xc9a27a)); h.position.y = 1.4; q.add(h); return q; };
+      const A = person(C.red), B = person(C.sig); g.add(A, B);
+      const aA = arrow(C.red), aB = arrow(C.sig); g.add(aA, aB);
+      const lA = label('', 'r sm'), lB = label('', 'e sm'); g.add(lA, lB);
+      return {
+        update(p, r, k) {
+          const t = Math.max(0, k - 0.25) * 3.2;
+          A.scale.setScalar(0.8 + p.mA / 250); B.scale.setScalar(0.8 + p.mB / 250);
+          A.position.x = 0.3 + r.vA * t; B.position.x = -0.3 - p.vB * t;
+          const moving = t > 0; aA.visible = aB.visible = moving;
+          aA.set(V(A.position.x, 1.9, 0), V(1, 0, 0), 0.3 + r.vA / 2); aB.set(V(B.position.x, 1.9, 0), V(-1, 0, 0), 0.3 + p.vB / 2);
+          lA.position.set(A.position.x, 2.3, 0); lA.set(moving ? `${fmt(r.vA, 3)} m/s` : `${p.mA} kg`); lB.position.set(B.position.x, 2.3, 0); lB.set(moving ? `${fmt(p.vB, 3)} m/s` : `${p.mB} kg`);
+        },
+      };
+    },
+    steps: [
+      { cam: [0.0, 2.7, 9.3], at: [0, 1, 0], text: () => ar() ? 'متزلجان ساكنان على جليد أملس. **الزخم الكلي صفر** قبل الدفع.' : 'Two skaters at rest on smooth ice. **Total momentum is zero** before the push.' },
+      { cam: [1.2, 2.2, 8.1], at: [0, 1, 0], text: () => ar() ? 'قوة الدفع داخلية، فيبقى الزخم الكلي صفرًا بعدها: $m_A v_A = -m_B v_B$. يتحركان في **اتجاهين متعاكسين** بزخمين متساويين.' : 'The push is internal, so total momentum stays zero: $m_A v_A = -m_B v_B$. They move **apart** with equal momenta.' },
+      { cam: [0.0, 4.0, 8.7], at: [0, 0.8, 0], text: (p) => ar() ? `**الأخف أسرع:** نسبة السرعتين تساوي مقلوب نسبة الكتلتين = ${fmt(p.mA / p.mB)}. وبالمبدأ نفسه ترتد البندقية ويتسارع الصاروخ في الفضاء.` : `**The lighter one is faster:** the speed ratio is the inverse mass ratio = ${fmt(p.mA / p.mB)}. The same idea makes a gun recoil and a rocket accelerate in space.` },
+    ],
+  });
+
+  SCENES.push({
+    id: 'work', keys: ['الشغل', 'شغل', 'القدرة', 'قدرة', 'جول', 'واط', 'work', 'power', 'joule'],
+    title: ['الشغل والقدرة', 'Work and power'], sub: ['W = Fd cos θ · P = W/t', 'W = Fd cos θ · P = W/t'],
+    params: [
+      { k: 'F', label: ['قوة السحب', 'Pulling force'], min: 10, max: 300, step: 5, def: 125, unit: 'N' },
+      { k: 'th', label: ['زاوية الحبل مع الأفقي', 'Rope angle'], min: 0, max: 85, step: 1, def: 25, unit: '°' },
+      { k: 'd', label: ['المسافة', 'Distance'], min: 1, max: 5, step: 0.1, def: 3, unit: 'm' },
+      { k: 'm', label: ['كتلة الصندوق', 'Box mass'], min: 5, max: 60, step: 1, def: 20, unit: 'kg' },
+    ],
+    compute(p) { const c = Math.cos(p.th * Math.PI / 180), Fx = p.F * c, W = Fx * p.d, v = Math.sqrt(2 * W / p.m), t = 2 * p.d / v; return { Fx, Fy: p.F * Math.sin(p.th * Math.PI / 180), W, v, t, P: W / t }; },
+    big: (r) => ({ k: 'W', v: fmt(r.W, 3) + ' J' }),
+    cards: (r) => [['e', ['المركبة الأفقية F cos θ', 'Horizontal part F cos θ'], fmt(r.Fx, 3), 'N'], ['g', ['الشغل = ΔKE', 'Work = ΔKE'], fmt(r.W, 3), 'J'], ['k', ['السرعة في النهاية', 'Final speed'], fmt(r.v, 3), 'm/s'], ['r', ['القدرة P = W/t', 'Power P = W/t'], fmt(r.P, 3), 'W']],
+    chart: (p) => { const pts = []; for (let a = 0; a <= 85; a += 5) pts.push([a, p.F * Math.cos(a * Math.PI / 180) * p.d]); return { series: [{ pts }], mark: [p.th, p.F * Math.cos(p.th * Math.PI / 180) * p.d], xLabel: 'θ (°)', yLabel: 'W (J)', yMin: 0 }; },
+    build(S) {
+      const g = new THREE.Group(); S.root.add(g);
+      const floor = box(9, 0.04, 1.6, mat(0x3a4560)); floor.position.y = 0.02; g.add(floor);
+      const bx = box(0.7, 0.6, 0.7, mat(C.wood, { r: 0.8 })); g.add(bx);
+      const rope = rod(0.015, mat(C.rope)); g.add(rope);
+      const aF = arrow(C.sig), aX = arrow(C.green), aY = arrow(C.violet); g.add(aF, aX, aY);
+      const lF = label('', 'e sm'), lX = label('', 'g sm'), lW = label('', 'k'); g.add(lF, lX, lW);
+      const startM = rod(0.01, mat(C.acc, { op: 0.7 })), endM = rod(0.01, mat(C.acc, { op: 0.7 })); g.add(startM, endM);
+      return {
+        update(p, r, k) {
+          const u = ease(Math.min(1, k * 1.25)), x0 = -p.d / 2 - 0.6, x = x0 + u * p.d;
+          bx.position.set(x, 0.32, 0); bx.scale.setScalar(0.8 + p.m / 120);
+          const th = p.th * Math.PI / 180, att = V(x + 0.35, 0.45, 0), hand = att.clone().add(V(Math.cos(th), Math.sin(th), 0).multiplyScalar(1.6));
+          rope.between(att, hand);
+          aF.set(hand, V(Math.cos(th), Math.sin(th), 0), 0.4 + p.F / 300); aX.set(att.clone().add(V(0, -0.3, 0.5)), V(1, 0, 0), 0.3 + r.Fx / 300); aY.visible = r.Fy > 2; aY.set(att.clone().add(V(0.3, 0, 0.5)), V(0, 1, 0), 0.2 + r.Fy / 300);
+          lF.position.copy(hand).add(V(0.5, 0.4, 0)); lF.set(`F = ${p.F} N`); lX.position.copy(att).add(V(0.6, -0.55, 0.5)); lX.set(`F cos θ = ${fmt(r.Fx, 3)} N`);
+          lW.position.set(0, 2.2, 0); lW.set(`W = ${fmt(r.W * u, 3)} J`);
+          startM.between(V(x0, 0.05, 0.8), V(x0, 0.05, -0.8)); endM.between(V(x0 + p.d, 0.05, 0.8), V(x0 + p.d, 0.05, -0.8));
+        },
+      };
+    },
+    steps: [
+      { cam: [0, 2.2, 6.6], at: [0, 0.8, 0], text: () => ar() ? 'نسحب صندوقًا بحبل على أرض ملساء. **الشغل** هو القوة مضروبة في الإزاحة في اتجاهها: $W = Fd$.' : 'We pull a box with a rope on a smooth floor. **Work** is force times displacement in its direction: $W = Fd$.' },
+      { cam: [1.4, 1.4, 4.6], at: [0, 0.6, 0], text: (p, r) => ar() ? `الحبل مائل بزاوية ${p.th}°، فالمركبة **الأفقية** (الخضراء) $F\\cos\\theta$ = ${fmt(r.Fx)} N وحدها تبذل شغلًا؛ والرأسية لا تحرك الصندوق أفقيًا.` : `The rope is at ${p.th}°, so only the **horizontal** part (green) $F\\cos\\theta$ = ${fmt(r.Fx)} N does work; the vertical part does not move the box along.` },
+      { cam: [0, 2.8, 6], at: [0, 0.8, 0], text: (p, r) => ar() ? `$W = Fd\\cos\\theta$ = ${fmt(r.W)} J، ويساوي حسب **نظرية الشغل – الطاقة** الطاقة الحركية التي اكتسبها الصندوق، فتصبح سرعته ${fmt(r.v)} m/s.` : `$W = Fd\\cos\\theta$ = ${fmt(r.W)} J, which by the **work–energy theorem** equals the kinetic energy gained, giving ${fmt(r.v)} m/s.` },
+      { cam: [-1.6, 2, 5.4], at: [0, 0.8, 0], text: (p, r) => ar() ? `**القدرة** معدل بذل الشغل: $P = W/t$ = ${fmt(r.P)} W. صغّر الزاوية: يزيد الشغل والقدرة بالقوة نفسها.` : `**Power** is the rate of doing work: $P = W/t$ = ${fmt(r.P)} W. Lower the angle: more work and power for the same force.` },
+    ],
+  });
+
+  SCENES.push({
+    id: 'coaster', keys: ['حفظ الطاقة', 'الطاقة الميكانيكية', 'قطار الملاهي', 'منحدر', 'conservation of energy', 'mechanical energy', 'roller coaster'],
+    title: ['قطار الملاهي', 'Roller coaster'], sub: ['حفظ الطاقة الميكانيكية · E = KE + PE', 'Conservation of mechanical energy'],
+    params: [
+      { k: 'h0', label: ['ارتفاع القمة الأولى', 'First hill height'], min: 10, max: 40, step: 1, def: 30, unit: 'm' },
+      { k: 'f', label: ['الطاقة المفقودة بالاحتكاك', 'Energy lost to friction'], min: 0, max: 30, step: 1, def: 0, unit: '%' },
+    ],
+    compute(p) { const m = 500, E = m * G * p.h0; return { m, E, vmax: Math.sqrt(2 * G * p.h0 * (1 - p.f / 100)) }; },
+    big: (r) => ({ k: 'E', v: fmt(r.E / 1000, 3) + ' kJ' }),
+    cards: (r, p) => [['g', ['الطاقة عند القمة', 'Energy at the top'], fmt(r.E, 3), 'J'], ['k', ['أقصى سرعة تقريبًا', 'Top speed (approx.)'], fmt(r.vmax, 3), 'm/s'], ['r', ['المفقود حرارةً', 'Lost as heat'], p.f, '%'], ['e', ['كتلة العربة', 'Car mass'], r.m, 'kg']],
+    chart: (p) => { const pts = []; for (let x = -7; x <= 7.01; x += 0.25) pts.push([x, 500 * G * p.h0 * (TR(x) / 1)]); return { series: [{ pts }], xLabel: 'x', yLabel: 'PE (J)', yMin: 0 }; },
+    build(S) {
+      const g = new THREE.Group(); S.root.add(g);
+      const SC = 0.1, pts = []; for (let x = -7; x <= 7.001; x += 0.1) pts.push(V(x, 0.3 + TR(x) * 3, 0));
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const rail = new THREE.Mesh(new THREE.TubeGeometry(curve, 300, 0.05, 8), mat(C.metal, { m: 0.7 })); g.add(rail);
+      for (let x = -6.5; x <= 7; x += 0.9) { const y = 0.3 + TR(x) * 3; const leg = cyl(0.03, 0.03, y, mat(C.dark), 8); leg.position.set(x, y / 2, 0); g.add(leg); }
+      const car = box(0.7, 0.4, 0.5, mat(C.red, { m: 0.3, e: C.red, ei: 0.3 })); g.add(car);
+      const bars = energyBars(g, 1.6, 0.4, [['KE', C.acc, 'k'], ['PE', C.sig, 'e'], [ar() ? 'حرارة' : 'Heat', C.red, 'r'], [ar() ? 'المجموع' : 'Total', C.green, 'g']]); bars.position.z = -2.2;
+      const lV = label('', 'k sm'); g.add(lV);
+      let x = -6.9, dir = 1; void SC;
+      return {
+        update(p, r, k, dt) {
+          const h = (xx) => TR(xx) * p.h0, h0 = h(-7) || p.h0;
+          const lostFrac = p.f / 100 * Math.min(1, (x + 7) / 14);
+          const Ek = r.m * G * (p.h0 - h(x)) - r.E * lostFrac, v = Math.sqrt(Math.max(0.3, 2 * Ek / r.m));
+          x += dir * v * dt * 0.12; if (x > 6.95) x = -6.9;
+          const y = 0.3 + TR(x) * 3, slope = (TR(x + 0.01) - TR(x - 0.01)) / 0.02 * 3;
+          car.position.set(x, y + 0.2, 0); car.rotation.z = Math.atan(slope);
+          const PE = r.m * G * h(x), KE = Math.max(0, r.E - PE - r.E * lostFrac);
+          bars.set([KE, PE, r.E * lostFrac, r.E], 1.8 / r.E);
+          lV.position.set(x, y + 0.7, 0); lV.set(`v = ${fmt(v, 3)} m/s`); void h0;
+        },
+      };
+    },
+    steps: [
+      { cam: [0, 3.2, 9], at: [0, 1.6, 0], text: (p, r) => ar() ? `العربة تبدأ ساكنة أعلى القمة الأولى (${p.h0} m): طاقتها الميكانيكية كلها **طاقة وضع** = ${fmt(r.E)} J.` : `The car starts at rest on the first hill (${p.h0} m): all its mechanical energy is **potential** = ${fmt(r.E)} J.` },
+      { cam: [-2, 2.4, 6.4], at: [-2, 1.4, 0], text: () => ar() ? 'وهي تنزل تتحول طاقة الوضع إلى **طاقة حركية** فتزداد سرعتها، وعند الصعود يحدث العكس. بلا احتكاك: $KE_i + PE_i = KE_f + PE_f$.' : 'Going down, potential energy becomes **kinetic** and it speeds up; going up, the reverse. Without friction: $KE_i + PE_i = KE_f + PE_f$.' },
+      { cam: [0, 4, 8], at: [0, 1.6, 0], text: () => ar() ? '**العمود الأخضر ثابت**، ولذلك لا تستطيع العربة صعود قمة أعلى من القمة الأولى، ولهذا تكون أول قمة هي الأعلى دائمًا.' : '**The green total stays constant**, so the car can never climb higher than the first hill, which is why the first hill is always the tallest.' },
+      { cam: [2, 2.6, 7], at: [1, 1.4, 0], text: () => ar() ? 'أضف **احتكاكًا**: يتحول جزء من الطاقة إلى حرارة (العمود الأحمر)، فتقل الطاقة الميكانيكية. الطاقة الكلية ما زالت محفوظة.' : 'Add **friction**: part of the energy becomes heat (red bar) and the mechanical energy falls. Total energy is still conserved.' },
+    ],
+  });
+  // track profile, 1 at the first hill
+  function TR(x) { return Math.max(0, Math.exp(-((x + 6.6) ** 2) / 2.2) + 0.72 * Math.exp(-((x + 0.6) ** 2) / 1.6) + 0.4 * Math.exp(-((x - 4.2) ** 2) / 1.2) + 0.02); }
+
+  SCENES.push({
+    id: 'pendulum', keys: ['بندول', 'البندول', 'تذبذب', 'pendulum', 'oscillation'],
+    title: ['البندول', 'The pendulum'], sub: ['تبادل طاقة الوضع والطاقة الحركية', 'Potential and kinetic energy trade places'],
+    params: [
+      { k: 'L', label: ['طول الخيط', 'String length'], min: 0.5, max: 2.5, step: 0.05, def: 2, unit: 'm' },
+      { k: 'a0', label: ['زاوية البداية', 'Starting angle'], min: 5, max: 70, step: 1, def: 35, unit: '°' },
+      { k: 'b', label: ['مقاومة الهواء', 'Air resistance'], min: 0, max: 0.3, step: 0.01, def: 0, unit: '' },
+    ],
+    compute(p) { const m = 1, h = p.L * (1 - Math.cos(p.a0 * Math.PI / 180)); return { T: 2 * Math.PI * Math.sqrt(p.L / G), h, E: m * G * h, vmax: Math.sqrt(2 * G * h) }; },
+    big: (r) => ({ k: 'T', v: fmt(r.T, 3) + ' s' }),
+    cards: (r) => [['e', ['أقصى ارتفاع', 'Max height'], fmt(r.h, 3), 'm'], ['k', ['أقصى سرعة', 'Max speed'], fmt(r.vmax, 3), 'm/s'], ['g', ['الطاقة (1 kg)', 'Energy (1 kg)'], fmt(r.E, 3), 'J'], ['r', ['الزمن الدوري', 'Period'], fmt(r.T, 3), 's']],
+    chart: (p) => { const pts = []; for (let L = 0.5; L <= 2.51; L += 0.1) pts.push([L, 2 * Math.PI * Math.sqrt(L / G)]); return { series: [{ pts }], mark: [p.L, 2 * Math.PI * Math.sqrt(p.L / G)], xLabel: 'L (m)', yLabel: 'T (s)', yMin: 0 }; },
+    build(S) {
+      const g = new THREE.Group(); S.root.add(g);
+      const top = 3.1, frame = box(2.6, 0.08, 0.3, mat(C.dark)); frame.position.y = top; g.add(frame);
+      [-1.25, 1.25].forEach((x) => { const leg = cyl(0.04, 0.04, top, mat(C.dark), 8); leg.position.set(x, top / 2, 0); g.add(leg); });
+      const str = rod(0.008, mat(0xffffff)); g.add(str);
+      const bob = mesh(new THREE.SphereGeometry(0.16, 24, 16), mat(C.acc, { m: 0.5 })); g.add(bob);
+      const ref = rod(0.008, mat(C.sig, { op: 0.6 })); g.add(ref);
+      const bars = energyBars(g, 1.9, 0.6, [['KE', C.acc, 'k'], ['PE', C.sig, 'e'], [ar() ? 'المجموع' : 'Total', C.green, 'g']]);
+      let th = null, w = 0, lastKey = '';
+      return {
+        update(p, r, k, dt) {
+          const key = p.L + '|' + p.a0; if (key !== lastKey) { lastKey = key; th = p.a0 * Math.PI / 180; w = 0; }
+          for (let i = 0; i < 4; i++) { const h = dt / 4; w += (-G / p.L * Math.sin(th) - p.b * w) * h; th += w * h; }
+          if (Math.abs(th) < 0.02 && Math.abs(w) < 0.02) { th = p.a0 * Math.PI / 180; w = 0; }
+          const Ld = p.L * 1.1, piv = V(0, top, 0), pos = V(Math.sin(th) * Ld, top - Math.cos(th) * Ld, 0);
+          str.between(piv, pos); bob.position.copy(pos);
+          const low = top - Ld; ref.between(V(-1.2, low, 0.3), V(1.2, low, 0.3));
+          const PE = G * p.L * (1 - Math.cos(th)), KE = 0.5 * (w * p.L) ** 2;
+          bars.set([KE, PE, KE + PE], 2 / Math.max(r.E, 0.01));
+        },
+      };
+    },
+    steps: [
+      { cam: [0, 2.2, 6.6], at: [0.6, 1.8, 0], text: () => ar() ? 'نرفع ثقل البندول جانبًا فنبذل شغلًا يكسب النظام (الثقل والأرض) **طاقة وضع**. نختار مستوى الإسناد عند أدنى نقطة.' : 'Pulling the bob aside does work that gives the bob–Earth system **potential energy**. We put the reference level at the lowest point.' },
+      { cam: [1, 1.6, 5.4], at: [0.8, 1.4, 0], text: () => ar() ? 'عند أدنى نقطة الطاقة كلها **حركية**، وعند الطرفين كلها **وضع**. والمجموع (الأخضر) ثابت عند انعدام الاحتكاك.' : 'At the bottom it is all **kinetic**, at each end all **potential**. The green total stays constant without friction.' },
+      { cam: [-1.2, 2, 6], at: [0.6, 1.8, 0], text: (p, r) => ar() ? `الزمن الدوري $T = 2\\pi\\sqrt{L/g}$ = ${fmt(r.T)} s يعتمد على الطول فقط. أضف **مقاومة الهواء**: تقل الطاقة الميكانيكية تدريجيًا وتتحول حرارة حتى يتوقف.` : `The period $T = 2\\pi\\sqrt{L/g}$ = ${fmt(r.T)} s depends only on length. Add **air resistance**: mechanical energy slowly turns into heat until it stops.` },
+    ],
+  });
+
+  SCENES.push({
+    id: 'particles', keys: ['درجة الحرارة', 'الطاقة الحرارية', 'اتزان حراري', 'الاتزان الحراري', 'جزيئات', 'حرارة نوعية', 'الحرارة النوعية', 'المسعر', 'temperature', 'thermal energy', 'specific heat'],
+    title: ['الجزيئات والاتزان الحراري', 'Molecules and thermal equilibrium'], sub: ['الحرارة تنتقل من الأسخن إلى الأبرد', 'Heat flows from hot to cold'],
+    params: [
+      { k: 'TA', label: ['درجة حرارة الجسم الساخن', 'Hot body temperature'], min: 300, max: 600, step: 5, def: 500, unit: 'K' },
+      { k: 'TB', label: ['درجة حرارة الجسم البارد', 'Cold body temperature'], min: 200, max: 400, step: 5, def: 280, unit: 'K' },
+      { k: 'mB', label: ['كتلة الجسم البارد (ماء)', 'Cold body mass (water)'], min: 0.5, max: 3, step: 0.1, def: 1, unit: 'kg' },
+    ],
+    compute(p) { const mA = 1, Tf = (mA * p.TA + p.mB * p.TB) / (mA + p.mB); return { Tf, Q: mA * 4180 * (p.TA - Tf) }; },
+    big: (r) => ({ k: 'T_f', v: fmt(r.Tf, 3) + ' K' }),
+    cards: (r, p) => [['r', ['الساخن (1 kg ماء)', 'Hot (1 kg water)'], p.TA, 'K'], ['e', ['البارد', 'Cold'], p.TB, 'K'], ['g', ['درجة الاتزان', 'Equilibrium temperature'], fmt(r.Tf, 3), 'K'], ['k', ['الحرارة المنتقلة Q', 'Heat transferred Q'], fmt(r.Q, 3), 'J']],
+    chart: (p) => { const r = { Tf: (p.TA + p.mB * p.TB) / (1 + p.mB) }, a = [], b = []; for (let t = 0; t <= 1.001; t += 0.05) { const f = Math.exp(-4 * t); a.push([t, r.Tf + (p.TA - r.Tf) * f]); b.push([t, r.Tf + (p.TB - r.Tf) * f]); } return { series: [{ pts: a }, { pts: b }], xLabel: ar() ? 'الزمن' : 'time', yLabel: 'T (K)' }; },
+    build(S) {
+      const g = new THREE.Group(); g.position.y = 1; S.root.add(g);
+      const glass = new THREE.MeshStandardMaterial({ color: 0x9fb4d6, transparent: true, opacity: 0.12, roughness: 0.1 });
+      const boxA = mesh(new THREE.BoxGeometry(1.8, 1.8, 1.8), glass, false); boxA.position.x = -0.92; g.add(boxA);
+      const boxB = mesh(new THREE.BoxGeometry(1.8, 1.8, 1.8), glass.clone(), false); boxB.position.x = 0.92; g.add(boxB);
+      const wall = box(0.04, 1.8, 1.8, mat(C.metal, { m: 0.8, op: 0.6 })); g.add(wall);
+      const N = 40, geo = new THREE.SphereGeometry(0.05, 10, 8);
+      const make = (cx) => Array.from({ length: N }, () => { const s = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.4 })); s.position.set(cx + (Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6); const d = V(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(); s.d = d; g.add(s); return s; });
+      const A = make(-0.92), B = make(0.92);
+      const lA = label('', 'r'), lB = label('', 'e'), lQ = label('', 'k sm'); g.add(lA, lB, lQ);
+      const aQ = arrow(C.acc); g.add(aQ);
+      const col = (T) => new THREE.Color().setHSL(0.62 - 0.62 * Math.max(0, Math.min(1, (T - 200) / 400)), 0.9, 0.55);
+      return {
+        update(p, r, k, dt) {
+          const f = Math.exp(-4 * Math.min(1, k * 1.2)), TA = r.Tf + (p.TA - r.Tf) * f, TB = r.Tf + (p.TB - r.Tf) * f;
+          const move = (arr, cx, T) => { const sp = Math.sqrt(T / 300) * 1.4, c = col(T); arr.forEach((s) => { s.position.addScaledVector(s.d, sp * dt); ['x', 'y', 'z'].forEach((ax) => { const lo = (ax === 'x' ? cx : 0) - 0.85, hi = (ax === 'x' ? cx : 0) + 0.85; if (s.position[ax] < lo) { s.position[ax] = lo; s.d[ax] *= -1; } if (s.position[ax] > hi) { s.position[ax] = hi; s.d[ax] *= -1; } }); s.material.color.copy(c); s.material.emissive.copy(c); }); };
+          move(A, -0.92, TA); move(B, 0.92, TB);
+          lA.position.set(-0.92, 1.2, 0); lA.set(`${fmt(TA, 3)} K`); lB.position.set(0.92, 1.2, 0); lB.set(`${fmt(TB, 3)} K`);
+          aQ.visible = Math.abs(TA - TB) > 3; aQ.set(V(-0.5, -1.15, 0.9), V(1, 0, 0), 0.4 + Math.abs(TA - TB) / 300);
+          lQ.position.set(0, -1.45, 0.9); lQ.set(Math.abs(TA - TB) > 3 ? (ar() ? 'الحرارة Q →' : 'heat Q →') : (ar() ? 'اتزان حراري' : 'thermal equilibrium'));
+        },
+      };
+    },
+    steps: [
+      { cam: [0, 2, 5], at: [0, 1, 0], text: () => ar() ? 'جسمان متلامسان: جزيئات الساخن (الأحمر) **متوسط طاقتها الحركية أكبر** فتتحرك أسرع. **درجة الحرارة** مقياس لهذا المتوسط.' : 'Two bodies in contact: the hot one’s molecules (red) have **higher average kinetic energy** and move faster. **Temperature** measures that average.' },
+      { cam: [0.6, 1.4, 4], at: [0, 0.6, 0], text: () => ar() ? 'عند الجدار تصطدم الجزيئات السريعة بالبطيئة فتنقل لها طاقة بالتوصيل: هذه **الحرارة** Q، وتتدفق تلقائيًا من الأسخن إلى الأبرد.' : 'At the wall fast molecules hit slow ones and pass energy by conduction: this is **heat** Q, flowing by itself from hot to cold.' },
+      { cam: [0, 2.4, 5.4], at: [0, 1, 0], text: (p, r) => ar() ? `يستمر التدفق حتى **الاتزان الحراري** عند ${fmt(r.Tf)} K. زِد كتلة البارد: يتغير الساخن كثيرًا والبارد قليلًا، كما في المسعر.` : `Flow continues until **thermal equilibrium** at ${fmt(r.Tf)} K. Increase the cold mass: the hot one changes a lot, the cold one little, as in a calorimeter.` },
+    ],
+  });
+
+  SCENES.push({
+    id: 'phase', keys: ['انصهار', 'غليان', 'تبخر', 'الحرارة الكامنة', 'كامنة', 'حالة المادة', 'تغير الحالة', 'melting', 'boiling', 'latent heat'],
+    title: ['من الجليد إلى البخار', 'From ice to steam'], sub: ['منحنى التسخين والحرارة الكامنة · الشكل 10-6', 'Heating curve and latent heat · Figure 6-10'],
+    params: [
+      { k: 'm', label: ['الكتلة', 'Mass'], min: 0.1, max: 1, step: 0.05, def: 0.5, unit: 'kg' },
+      { k: 'P', label: ['قدرة السخان', 'Heater power'], min: 500, max: 3000, step: 50, def: 1500, unit: 'W' },
+    ],
+    compute(p) { const m = p.m, q = [m * 2060 * 20, m * 3.34e5, m * 4180 * 100, m * 2.26e6, m * 2020 * 20]; const tot = q.reduce((a, b) => a + b, 0); return { q, tot, time: tot / p.P }; },
+    big: (r) => ({ k: 'Q', v: fmt(r.tot / 1000, 3) + ' kJ' }),
+    cards: (r) => [['e', ['انصهار mH_f', 'Melting mH_f'], fmt(r.q[1] / 1000, 3), 'kJ'], ['k', ['تسخين الماء 100 K', 'Heating water 100 K'], fmt(r.q[2] / 1000, 3), 'kJ'], ['r', ['تبخر mH_v', 'Boiling mH_v'], fmt(r.q[3] / 1000, 3), 'kJ'], ['g', ['زمن التسخين كله', 'Total heating time'], fmt(r.time / 60, 3), 'min']],
+    chart: (p) => { const r = SCENES.find((s) => s.id === 'phase').compute(p), T = [253, 273, 273, 373, 373, 393]; let acc = 0; const pts = [[0, 253]]; r.q.forEach((q, i) => { acc += q; pts.push([acc / 1000, T[i + 1]]); }); return { series: [{ pts }], xLabel: 'Q (kJ)', yLabel: 'T (K)' }; },
+    build(S) {
+      const g = new THREE.Group(); S.root.add(g);
+      const stove = box(1.6, 0.3, 1.6, mat(C.dark)); stove.position.y = 0.15; g.add(stove);
+      const coil = mesh(new THREE.TorusGeometry(0.45, 0.04, 8, 32), mat(C.red, { e: C.red, ei: 0.2 })); coil.rotation.x = Math.PI / 2; coil.position.y = 0.32; g.add(coil);
+      const pot = mesh(new THREE.CylinderGeometry(0.6, 0.55, 1.1, 40, 1, true), new THREE.MeshStandardMaterial({ color: 0x9fb4d6, transparent: true, opacity: 0.18, side: THREE.DoubleSide }), false); pot.position.y = 0.9; g.add(pot);
+      const water = cyl(0.56, 0.53, 1, new THREE.MeshStandardMaterial({ color: 0x3f8fd6, transparent: true, opacity: 0.7 }), 40); g.add(water);
+      const ice = box(0.55, 0.45, 0.55, new THREE.MeshStandardMaterial({ color: 0xdff4ff, transparent: true, opacity: 0.85, roughness: 0.1 })); g.add(ice);
+      const steam = Array.from({ length: 24 }, () => { const s = mesh(new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 }), false); s.p = Math.random(); s.x = (Math.random() - 0.5) * 0.8; s.z = (Math.random() - 0.5) * 0.8; g.add(s); return s; });
+      const thermo = cyl(0.04, 0.04, 1.6, mat(0xffffff, { op: 0.3 }), 8); thermo.position.set(1.2, 1.1, 0); g.add(thermo);
+      const merc = cyl(0.03, 0.03, 1, mat(C.red, { e: C.red }), 8); g.add(merc);
+      const lT = label('', 'r'), lP = label('', 'k'); g.add(lT, lP);
+      return {
+        update(p, r, k) {
+          const Q = Math.min(1, k * 1.1) * r.tot; let acc = 0, seg = 0; for (; seg < 5; seg++) { if (Q <= acc + r.q[seg]) break; acc += r.q[seg]; }
+          const f = seg < 5 ? (Q - acc) / r.q[seg] : 1;
+          const T = [253 + 20 * f, 273, 273 + 100 * f, 373, 373 + 20 * f][Math.min(seg, 4)];
+          const iceLeft = seg === 0 ? 1 : seg === 1 ? 1 - f : 0, waterAmt = seg === 0 ? 0 : seg === 1 ? f : seg === 2 ? 1 : seg === 3 ? 1 - f : 0;
+          ice.visible = iceLeft > 0.02; ice.scale.setScalar(Math.max(0.05, Math.cbrt(iceLeft))); ice.position.y = 0.4 + 0.22 * ice.scale.y;
+          water.visible = waterAmt > 0.02; const hw = 0.7 * waterAmt + 0.02; water.scale.y = hw; water.position.y = 0.36 + hw / 2;
+          const boiling = seg >= 3;
+          steam.forEach((s) => { s.visible = boiling; s.p = (s.p + 0.01) % 1; s.position.set(s.x * (1 + s.p), 1.2 + s.p * 1.6, s.z * (1 + s.p)); s.material.opacity = 0.5 * (1 - s.p); });
+          const hm = 0.05 + 1.5 * (T - 253) / 140; merc.scale.y = hm; merc.position.set(1.2, 0.3 + hm / 2, 0);
+          lT.position.set(1.2, 2.1, 0); lT.set(`${fmt(T, 3)} K`);
+          lP.position.set(0, 2.6, 0); lP.set([ar() ? 'تسخين الجليد' : 'heating ice', ar() ? 'انصهار: الحرارة ثابتة' : 'melting: T constant', ar() ? 'تسخين الماء' : 'heating water', ar() ? 'غليان: الحرارة ثابتة' : 'boiling: T constant', ar() ? 'تسخين البخار' : 'heating steam'][Math.min(seg, 4)]);
+        },
+      };
+    },
+    steps: [
+      { cam: [0, 2, 4.6], at: [0.3, 1, 0], text: () => ar() ? 'نسخن جليدًا عند 253 K. في البداية ترتفع درجة حرارته: الحرارة تزيد الطاقة الحركية لجزيئاته.' : 'We heat ice at 253 K. At first its temperature rises: the heat raises the molecules’ kinetic energy.' },
+      { cam: [0.8, 1.6, 3.6], at: [0, 0.8, 0], text: (p, r) => ar() ? `عند 273 K **ينصهر** والحرارة **ثابتة**: الطاقة تُستهلك في فك الروابط. $Q = mH_f$ = ${fmt(r.q[1] / 1000)} kJ.` : `At 273 K it **melts** and the temperature **stays constant**: energy goes into breaking bonds. $Q = mH_f$ = ${fmt(r.q[1] / 1000)} kJ.` },
+      { cam: [0, 2.4, 4.4], at: [0.3, 1.2, 0], text: (p, r) => ar() ? `يسخن الماء حتى 373 K ثم **يغلي** والحرارة ثابتة مرة أخرى: $Q = mH_v$ = ${fmt(r.q[3] / 1000)} kJ، وهي أكبر جزء من الطاقة كلها.` : `The water warms to 373 K, then **boils** at constant temperature again: $Q = mH_v$ = ${fmt(r.q[3] / 1000)} kJ, the biggest share of all.` },
+    ],
+  });
+
+  SCENES.push({
+    id: 'engine', keys: ['محرك', 'المحرك الحراري', 'الديناميكا الحرارية', 'القانون الأول', 'إنتروبي', 'مبرد', 'heat engine', 'thermodynamics', 'entropy'],
+    title: ['المحرك الحراري', 'Heat engine'], sub: ['W = Q_H − Q_L · الكفاءة أقل من 100%', 'W = Q_H − Q_L · efficiency below 100%'],
+    params: [
+      { k: 'QH', label: ['الحرارة من المستودع الساخن', 'Heat from the hot reservoir'], min: 100, max: 2000, step: 50, def: 1000, unit: 'J' },
+      { k: 'e', label: ['الكفاءة', 'Efficiency'], min: 5, max: 60, step: 1, def: 30, unit: '%' },
+    ],
+    compute(p) { const W = p.QH * p.e / 100; return { W, QL: p.QH - W }; },
+    big: (r) => ({ k: 'W', v: fmt(r.W, 3) + ' J' }),
+    cards: (r, p) => [['r', ['Q_H (داخل)', 'Q_H (in)'], p.QH, 'J'], ['g', ['W شغل نافع', 'W useful work'], fmt(r.W, 3), 'J'], ['e', ['Q_L ضائعة', 'Q_L wasted'], fmt(r.QL, 3), 'J'], ['k', ['الكفاءة', 'Efficiency'], p.e, '%']],
+    chart: (p) => ({ series: [{ pts: [[5, p.QH * 0.05], [60, p.QH * 0.6]] }], mark: [p.e, p.QH * p.e / 100], xLabel: 'e (%)', yLabel: 'W (J)', yMin: 0 }),
+    build(S) {
+      const g = new THREE.Group(); S.root.add(g);
+      const hot = box(3, 0.4, 1.4, mat(C.red, { e: C.red, ei: 0.3 })); hot.position.y = 3.3; g.add(hot);
+      const cold = box(3, 0.4, 1.4, mat(C.sig, { e: C.sig, ei: 0.2 })); cold.position.y = 0.2; g.add(cold);
+      const cylM = mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.3, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0x9fb4d6, transparent: true, opacity: 0.25, side: THREE.DoubleSide }), false); cylM.position.y = 1.75; g.add(cylM);
+      const piston = cyl(0.43, 0.43, 0.14, mat(C.metal, { m: 0.7 }), 32); g.add(piston);
+      const gas = cyl(0.42, 0.42, 1, new THREE.MeshStandardMaterial({ color: 0xff8a5c, transparent: true, opacity: 0.45 }), 32); g.add(gas);
+      const fly = wheel(0.5, 0.12, mat(C.acc, { m: 0.5 })); fly.position.set(2.2, 1.75, 0); g.add(fly);
+      const link = rod(0.03, mat(C.metal)); g.add(link);
+      const aH = arrow(C.red), aL = arrow(C.sig), aW = arrow(C.green); g.add(aH, aL, aW);
+      const lH = label('', 'r'), lL = label('', 'e'), lW = label('', 'g'), lHot = label(ar() ? 'مستودع ساخن T_H' : 'Hot reservoir T_H', 'r sm'), lCold = label(ar() ? 'مستودع بارد T_L' : 'Cold reservoir T_L', 'e sm'); g.add(lH, lL, lW, lHot, lCold);
+      let ang = 0;
+      return {
+        update(p, r, k, dt) {
+          ang += dt * (1 + r.W / 300); fly.rotation.z = -ang;
+          const y = 1.75 + Math.sin(ang) * 0.35; piston.position.y = y; const gh = y - 1.12; gas.scale.y = Math.max(0.05, gh); gas.position.y = 1.1 + gas.scale.y / 2;
+          const crank = V(2.2 + Math.cos(ang) * 0.35, 1.75 + Math.sin(ang) * 0.35, 0.1); link.between(V(0, y, 0.1), crank);
+          aH.set(V(-0.9, 3.05, 0), V(0, -1, 0), 0.4 + p.QH / 1500); aL.set(V(-0.9, 1.0, 0), V(0, -1, 0), 0.25 + r.QL / 1800); aW.set(V(2.9, 2.6, 0), V(1, 0, 0), 0.3 + r.W / 1200);
+          lH.position.set(-1.6, 2.7, 0); lH.set(`Q_H = ${p.QH} J`); lL.position.set(-1.6, 0.8, 0); lL.set(`Q_L = ${fmt(r.QL, 3)} J`); lW.position.set(3.4, 3, 0); lW.set(`W = ${fmt(r.W, 3)} J`);
+          lHot.position.set(1.2, 3.75, 0.6); lCold.position.set(1.2, -0.15, 0.6);
+        },
+      };
+    },
+    steps: [
+      { cam: [0.6, 2, 7], at: [0.6, 1.8, 0], text: () => ar() ? 'المحرك الحراري يمتص حرارة $Q_H$ من **مستودع ساخن** (مثل احتراق الوقود)، فيتمدد الغاز ويدفع المكبس.' : 'A heat engine takes heat $Q_H$ from a **hot reservoir** (like burning fuel); the gas expands and pushes the piston.' },
+      { cam: [2, 2, 5.4], at: [1.2, 1.8, 0], text: (p, r) => ar() ? `جزء من الحرارة يصبح **شغلًا نافعًا** $W$ = ${fmt(r.W)} J يدير الحدافة، والباقي $Q_L$ = ${fmt(r.QL)} J يذهب **حرارة ضائعة** إلى المستودع البارد.` : `Part becomes **useful work** $W$ = ${fmt(r.W)} J turning the flywheel; the rest $Q_L$ = ${fmt(r.QL)} J is **waste heat** to the cold reservoir.` },
+      { cam: [0, 2.4, 6.6], at: [0.6, 1.8, 0], text: () => ar() ? 'في الدورة الكاملة $\\Delta U = 0$، فبالقانون الأول: $W = Q_H - Q_L$. ولا يوجد محرك يحول الحرارة كلها إلى شغل، فكفاءته $W/Q_H$ أقل من 100% دائمًا.' : 'Over a full cycle $\\Delta U = 0$, so by the first law $W = Q_H - Q_L$. No engine turns all heat into work, so $W/Q_H$ is always below 100%.' },
+    ],
+  });
+
+  /* ---------- picking scenes for any lesson: the book's own list, the AI's choice, or keywords from the lesson ---------- */
+  NL.pickScenes = (l) => {
+    const ok = (ids) => (ids || []).filter((id) => SCENES.some((s) => s.id === id));
+    if (ok(l.scenes3d).length) return ok(l.scenes3d);
+    if (ok(l.analysis?.scenes3d).length) return ok(l.analysis.scenes3d);
+    const a = l.analysis || {}, text = [l.title, l.unit, ...(a.sections || []).map((s) => s.title), ...(a.concepts || []).map((c) => c.name), ...(a.laws || []).map((x) => x.name)].join(' ').toLowerCase();
+    const scored = SCENES.map((s) => ({ id: s.id, n: (s.keys || []).reduce((n, kw) => n + (text.includes(kw.toLowerCase()) ? 1 : 0), 0) })).filter((x) => x.n > 0).sort((x, y) => y.n - x.n);
+    return scored.length ? scored.slice(0, 3).map((x) => x.id) : ['throw', 'collide', 'work'];
+  };
+  NL.SCENE_CATALOG = () => SCENES.map((s) => `${s.id}: ${s.title[1]} — ${s.sub[1]}`).join('\n');
+
+  // keywords for the scenes written before the picker existed
+  Object.entries({ lever: ['رافعة', 'الرافعة', 'نقطة الارتكاز', 'lever'], pulley: ['بكرة', 'بكرات', 'pulley'], wheel: ['العجلة والمحور', 'عجلة', 'wheel and axle'], incline: ['مستوى مائل', 'المستوى المائل', 'إسفين', 'incline'], bike: ['دراجة', 'آلة مركبة', 'ناقل الحركة', 'bicycle'], throw: ['طاقة الوضع', 'الطاقة الحركية', 'طاقة حركية', 'مستوى الإسناد', 'potential energy', 'kinetic energy'], bow: ['مرونية', 'نابض', 'قوس', 'elastic'], vault: ['زانة', 'تحولات الطاقة', 'pole vault'] }).forEach(([id, keys]) => { const s = SCENES.find((x) => x.id === id); if (s) s.keys = keys; });
   NL.SCENES3D = SCENES;
 
   /* ---------- player ---------- */
   NL.mount3D = async (host, { onInteract, sceneIds } = {}) => {
-    const list = sceneIds ? SCENES.filter((s) => sceneIds.includes(s.id)) : SCENES;
+    const list = sceneIds ? sceneIds.map((id) => SCENES.find((s) => s.id === id)).filter(Boolean) : SCENES;
     host.innerHTML = `<div class="s3d"><div class="s3d-tabs" role="tablist">${list.map((s, i) => `<button role="tab" data-sc="${i}">${esc(tt(s.title))}</button>`).join('')}</div>
       <div class="s3d-stage"><div class="s3d-canvas"></div><div class="s3d-wait"><div class="orbit-loader"><span></span><span></span><span></span></div><p>${t('s3dLoading')}</p></div>
         <div class="s3d-title"><small></small><h3></h3></div>

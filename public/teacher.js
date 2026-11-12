@@ -47,7 +47,7 @@
       <div class="pr-bar"><span class="pr-where"></span>
         <div class="pr-tools"><button data-p="prev">${t('pPrev')}</button><span class="pr-count"></span><button data-p="next" class="main">${t('pNext')}</button>
           <button data-p="draw">${t('pDraw')}</button><button data-p="clear">${t('pClear')}</button><button data-p="timer">${t('pTimer')}</button>
-          ${L.scenes3d?.length ? `<button data-p="3d">${t('p3d')}</button>` : ''}<button data-p="full">${t('pFull')}</button><button data-p="exit">${t('pExit')}</button></div>
+          ${(L.scenes3d = NL.pickScenes?.(L) || L.scenes3d)?.length ? `<button data-p="3d">${t('p3d')}</button>` : ''}<button data-p="full">${t('pFull')}</button><button data-p="exit">${t('pExit')}</button></div>
         <span class="pr-keys">${t('pKeys')}</span></div>`;
     document.body.append(ov); document.body.classList.add('presenting');
     const slideEl = $('.pr-slide', ov), ink = $('.pr-ink', ov), ctx = ink.getContext('2d');

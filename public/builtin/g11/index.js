@@ -30,6 +30,8 @@
   };
   const mini = (list) => (list || []).map(([q, a]) => ({ q, a }));
 
+  // 3D scenes for each lesson of the book
+  const SC = { '1-1': ['orbit', 'satellite'], '1-2': ['satellite', 'orbit'], '2-1': ['spin', 'torque'], '2-2': ['torque', 'inertia', 'spin'], '2-3': ['balance', 'torque'], '3-1': ['collide', 'recoil'], '3-2': ['collide', 'recoil'], '4-1': ['work', 'incline'], '5-2': ['coaster', 'pendulum', 'collide'], '6-1': ['particles', 'phase'], '6-2': ['phase', 'engine', 'particles'] };
   NL.g11 = (d) => {
     const ch = CH[d.ch - 1];
     const analysis = {
@@ -58,7 +60,7 @@
       cover: `${BASE}${d.chapter}/p${d.cover || p0}.jpg`, readNotes: { weak: [], textLayerOnly: false },
       analysis, pagesUrl: `${BASE}${d.chapter}/pages.json`, pageBase: `${BASE}${d.chapter}/`,
       gen: { explain, summary, coach: d.coach || [] }, bank: d.bank || [], solved: d.solved || [],
-      ...(d.scenes3d ? { scenes3d: d.scenes3d } : {}), ...(d.videos ? { videos: d.videos } : {}), ...(d.sortActs ? { sortActs: d.sortActs } : {}),
+      scenes3d: d.scenes3d || SC[d.chapter] || [], ...(d.videos ? { videos: d.videos } : {}), ...(d.sortActs ? { sortActs: d.sortActs } : {}),
     });
   };
 })();

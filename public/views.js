@@ -650,6 +650,7 @@ Return ONLY JSON with this shape:
 "figures":[{"page":1,"description":"what the figure shows","why":"what it teaches"}],
 "misconceptions":[{"wrong":"common wrong idea","right":"correct idea","concept":"concept name"}],
 "labs":[{"id":"lab id from catalog","why":"which part of THIS lesson it demonstrates","params":{"param":value}}],
+"scenes3d":["3D scene id from the scene catalog"],
 "places":[{"name":"","lat":0,"lon":0,"year":"","desc":"","page":1}],
 "events":[{"year":"as written","sortKey":1744,"title":"","desc":"","place":"must equal a places[].name when known","page":1}],
 "functions":[{"expr":"math.js expression in x","desc":""}],
@@ -657,6 +658,8 @@ Return ONLY JSON with this shape:
 Examples: only worked examples that appear in the pages. bookQuestions: only questions printed in the pages. misconceptions: 2-6, may be general (they are not attributed to the book).
 labs: choose 0-4 from this catalog ONLY when the lesson really covers that physics/chemistry; set params within ranges to match the lesson's own numbers when possible:
 ${LAB_CATALOG()}
+scenes3d: ALWAYS choose 1-3 ids from this 3D scene catalog that best illustrate this lesson (closest match if none is exact):
+${NL.SCENE_CATALOG ? NL.SCENE_CATALOG() : ''}
 places/events: only for history/geography (or lessons naming real places/dates); lat/lon are your best estimate. functions: only for math lessons (functions/graphs in the pages). reactions: only for chemistry. Use [] when not applicable.`;
     onStep?.(0);
     const pa = ai.json(A, { modelTier: 'complex' }).then((r) => (onStep?.(1), r));
@@ -676,6 +679,7 @@ places/events: only for history/geography (or lessons naming real places/dates);
     const ids = new Set(a.concepts.map((c) => c.id));
     a.relations = a.relations.filter((r) => ids.has(r.from) && ids.has(r.to) && r.from !== r.to);
     a.labs = a.labs.filter((l) => NL.LABS[l.id]);
+    a.scenes3d = arr(a.scenes3d).filter((id) => (NL.SCENES3D || []).some((x) => x.id === id)).slice(0, 3);
     a.examples.forEach((e, i) => (e.id ||= 'e' + (i + 1)));
     const inRange = (p) => !p || (p >= 1 && p <= nPages);
     [...a.concepts, ...a.laws, ...a.examples].forEach((x) => { if (!inRange(x.page)) x.page = null; });
