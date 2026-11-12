@@ -1,8 +1,8 @@
-# Visits the live site every 10 minutes so Render's free plan does not put it to sleep.
+# Visits the live site every 6 minutes so Render's free plan does not put it to sleep.
 name: Keep the site awake
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/6 * * * *"
   workflow_dispatch:
 jobs:
   ping:
